@@ -14,5 +14,9 @@ WORKDIR /app
 RUN useradd --system --no-create-home app
 COPY --from=build /app/target/backend-*.jar app.jar
 USER app
+# The commit this image was built from; CI passes it in. Declared last so it does not
+# invalidate the cached layers above.
+ARG APP_VERSION=dev
+ENV APP_VERSION=$APP_VERSION
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]
