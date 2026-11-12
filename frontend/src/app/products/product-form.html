@@ -1,0 +1,27 @@
+<form class="product-form" [formGroup]="form" (ngSubmit)="submit()">
+  <h3>Add a product</h3>
+  <div class="fields">
+    <label>
+      SKU
+      <input type="text" formControlName="sku" />
+    </label>
+    <label>
+      Name
+      <input type="text" formControlName="name" />
+    </label>
+    <label>
+      Price
+      <input type="number" formControlName="price" min="0" step="0.01" />
+    </label>
+    <label>
+      In stock
+      <input type="number" formControlName="stockQuantity" min="0" step="1" />
+    </label>
+    <button type="submit" [disabled]="form.invalid || saving()">
+      {{ saving() ? 'Saving…' : 'Add product' }}
+    </button>
+  </div>
+  @if (error(); as error) {
+    <p class="error" role="alert">{{ error }}</p>
+  }
+</form>

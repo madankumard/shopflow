@@ -37,7 +37,7 @@ kubectl --context $context apply -k $deployDir
 if ($LASTEXITCODE -ne 0) { throw "[$Environment] kubectl apply failed" }
 
 # In dependency order: the backend needs the database, Vault and the Config Server.
-foreach ($workload in 'statefulset/db', 'deployment/vault', 'deployment/config-server', 'deployment/backend', 'deployment/frontend') {
+foreach ($workload in 'statefulset/db', 'deployment/vault', 'deployment/config-server', 'deployment/keycloak', 'deployment/backend', 'deployment/frontend') {
     # Generous: on a first deploy the cluster may still be downloading images.
     kubectl --context $context -n $Namespace rollout status $workload --timeout=600s
     if ($LASTEXITCODE -ne 0) {

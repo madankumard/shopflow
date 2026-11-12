@@ -57,4 +57,23 @@ if ($Tag -and $info.version -ne $Tag) {
 }
 Write-Host "[$Environment] app info OK (environment $($info.environment), version $($info.version))"
 
+# Login: Keycloak must answer through the app's own address and name that address as issuer,
+# and the backend must refuse a protected call that carries no login.
+$issuer = "$url/auth/realms/shopflow"
+$discovery = (Get-WithRetry "$issuer/.well-known/openid-configuration").Content | ConvertFrom-Json
+if ($discovery.issuer -ne $issuer) {
+    throw "[$Environment] Keycloak reports issuer '$($discovery.issuer)', expected $issuer"
+}
+$status = 0
+try {
+    Invoke-WebRequest -Uri "$url/api/products" -Method Post -ContentType 'application/json' -Body '{}' -UseBasicParsing -TimeoutSec 10 | Out-Null
+}
+catch {
+    if ($_.Exception.Response) { $status = [int]$_.Exception.Response.StatusCode }
+}
+if ($status -ne 401) {
+    throw "[$Environment] adding a product without a login returned $status, expected 401"
+}
+Write-Host "[$Environment] login OK (Keycloak reachable, protected calls refused without a token)"
+
 Write-Host "[$Environment] smoke test passed"

@@ -1,5 +1,5 @@
 # Local development stack.
-#   docker compose up -d db        -> database only (run backend/frontend from your IDE)
+#   docker compose up -d db keycloak -> database and login server (run backend/frontend from your IDE)
 #   docker compose up -d --build   -> database + backend in containers
 services:
   db:
@@ -24,20 +24,41 @@ services:
       DB_URL: jdbc:postgresql://db:5432/shopflow
       DB_USERNAME: shopflow
       DB_PASSWORD: shopflow
+      KEYCLOAK_JWKS_URL: http://keycloak:8080/auth/realms/shopflow/protocol/openid-connect/certs
     ports:
       - "8080:8080"
     depends_on:
       db:
         condition: service_healthy
 
+  # Login server with the same realm as the clusters. Local only: the passwords here are
+  # throwaway values for this machine (test users log in with the password "shopflow").
+  # Reached through the app's own address at http://localhost:4200/auth.
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.1
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_HTTP_RELATIVE_PATH: /auth
+      KC_PROXY_HEADERS: xforwarded
+      KC_HOSTNAME_STRICT: "false"
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      SHOPFLOW_USER_PASSWORD: shopflow
+    volumes:
+      - ./infra/k8s/base/keycloak:/opt/keycloak/data/import:ro
+    ports:
+      - "8180:8080"
+
   frontend:
     build: ./frontend
     environment:
       BACKEND_URL: http://backend:8080
+      KEYCLOAK_URL: http://keycloak:8080
     ports:
       - "4200:80"
     depends_on:
       - backend
+      - keycloak
 
 volumes:
   db-data:
