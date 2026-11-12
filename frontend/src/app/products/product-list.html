@@ -1,0 +1,36 @@
+<h2>Products</h2>
+
+@switch (status()) {
+  @case ('loading') {
+    <p class="message">Loading products…</p>
+  }
+  @case ('error') {
+    <p class="message error">Could not load products. Is the backend running?</p>
+  }
+  @case ('ready') {
+    @if (products().length === 0) {
+      <p class="message">No products yet.</p>
+    } @else {
+      <table>
+        <thead>
+          <tr>
+            <th>SKU</th>
+            <th>Name</th>
+            <th class="number">Price</th>
+            <th class="number">In stock</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (product of products(); track product.id) {
+            <tr>
+              <td>{{ product.sku }}</td>
+              <td>{{ product.name }}</td>
+              <td class="number">{{ product.price | currency }}</td>
+              <td class="number">{{ product.stockQuantity }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  }
+}

@@ -1,0 +1,29 @@
+.app-header {
+  display: flex;
+  align-items: baseline;
+  gap: 2rem;
+  padding: 0.9rem 1.5rem;
+  background: #16202e;
+  color: #fff;
+
+  h1 {
+    margin: 0;
+    font-size: 1.25rem;
+  }
+
+  a {
+    color: #b9c4d4;
+    text-decoration: none;
+
+    &.active {
+      color: #fff;
+      font-weight: 600;
+    }
+  }
+}
+
+.app-main {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
