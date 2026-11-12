@@ -1,0 +1,12 @@
+# kind cluster standing in for the dev server.
+# The frontend's NodePort (30080) is published on http://localhost:8081.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: shopflow-dev
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      - containerPort: 30080
+        hostPort: 8081
+        listenAddress: 127.0.0.1
+        protocol: TCP

@@ -1,0 +1,72 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+spec:
+  selector:
+    app: backend
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: backend
+          # The tag is set at deploy time by infra/deploy.ps1.
+          image: ghcr.io/madankumard/shopflow-backend
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: shopflow-env
+          env:
+            - name: DB_URL
+              value: jdbc:postgresql://db:5432/shopflow
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: shopflow-db
+                  key: username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: shopflow-db
+                  key: password
+            - name: JAVA_TOOL_OPTIONS
+              value: -XX:MaxRAMPercentage=60
+          # Gives the JVM up to two minutes to start before the other probes apply.
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            periodSeconds: 5
+            failureThreshold: 24
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 384Mi
+            limits:
+              memory: 768Mi
