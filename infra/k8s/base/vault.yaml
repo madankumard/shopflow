@@ -1,0 +1,105 @@
+# HashiCorp Vault in dev mode: unsealed, in memory, plain HTTP inside the cluster.
+# Good for learning the app-facing side of Vault; see vault/seed.sh for what a restart loses.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vault
+---
+# Lets Vault ask Kubernetes whether a pod's service account token is genuine.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: shopflow-vault-token-review
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:auth-delegator
+subjects:
+  - kind: ServiceAccount
+    name: vault
+    namespace: shopflow
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vault
+spec:
+  selector:
+    app: vault
+  ports:
+    - port: 8200
+      targetPort: 8200
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vault
+spec:
+  replicas: 1
+  # Two dev-mode Vaults would each hold their own copy of the secrets.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: vault
+  template:
+    metadata:
+      labels:
+        app: vault
+    spec:
+      serviceAccountName: vault
+      containers:
+        - name: vault
+          image: hashicorp/vault:2.2.1
+          args: ["server", "-dev", "-dev-listen-address=0.0.0.0:8200"]
+          ports:
+            - containerPort: 8200
+          env:
+            # The dev-mode admin token, generated per cluster by infra/create-clusters.ps1.
+            - name: VAULT_DEV_ROOT_TOKEN_ID
+              valueFrom:
+                secretKeyRef:
+                  name: shopflow-vault
+                  key: root-token
+            # Used by the vault CLI in seed.sh and in the readiness probe.
+            - name: VAULT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: shopflow-vault
+                  key: root-token
+            - name: VAULT_ADDR
+              value: http://127.0.0.1:8200
+            - name: SKIP_SETCAP
+              value: "true"
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: shopflow-db
+                  key: username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: shopflow-db
+                  key: password
+          lifecycle:
+            postStart:
+              exec:
+                command: ["sh", "/vault/seed/seed.sh"]
+          # Ready only once seeding has finished: the role is the last thing it needs.
+          readinessProbe:
+            exec:
+              command: ["vault", "read", "auth/kubernetes/role/backend"]
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 50m
+              memory: 96Mi
+            limits:
+              memory: 256Mi
+          volumeMounts:
+            - name: seed
+              mountPath: /vault/seed
+      volumes:
+        - name: seed
+          configMap:
+            name: vault-seed

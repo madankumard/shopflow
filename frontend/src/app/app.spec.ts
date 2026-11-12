@@ -30,17 +30,27 @@ describe('App', () => {
     expect(compiled.querySelector('nav a')?.textContent).toContain('Products');
     expect(compiled.querySelector('.env-badge')).toBeNull();
 
-    request.flush({ environment: 'local', version: 'dev' });
+    request.flush({ environment: 'local', version: 'dev', banner: '' });
   });
 
   it('shows the environment and version returned by the API', async () => {
-    http.expectOne('/api/info').flush({ environment: 'qa', version: 'abc1234' });
+    http.expectOne('/api/info').flush({ environment: 'qa', version: 'abc1234', banner: '' });
     await fixture.whenStable();
 
     const badge = compiled.querySelector('.env-badge');
     expect(badge?.textContent).toContain('qa');
     expect(badge?.textContent).toContain('abc1234');
     expect(badge?.getAttribute('data-env')).toBe('qa');
+    expect(compiled.querySelector('.env-banner')).toBeNull();
+  });
+
+  it('shows the banner when the environment has one', async () => {
+    http
+      .expectOne('/api/info')
+      .flush({ environment: 'qa', version: 'abc1234', banner: 'Test data only.' });
+    await fixture.whenStable();
+
+    expect(compiled.querySelector('.env-banner')?.textContent).toContain('Test data only.');
   });
 
   it('shows no badge when the info API fails', async () => {
@@ -48,6 +58,7 @@ describe('App', () => {
     await fixture.whenStable();
 
     expect(compiled.querySelector('.env-badge')).toBeNull();
+    expect(compiled.querySelector('.env-banner')).toBeNull();
     expect(compiled.querySelector('h1')?.textContent).toContain('ShopFlow');
   });
 });

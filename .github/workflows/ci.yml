@@ -68,7 +68,25 @@ jobs:
       - name: Build
         run: npx ng build
 
-  # Builds both images on every run. On main it also publishes them, tagged with the commit,
+  config-server:
+    name: Config server tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: config-server
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 25
+          cache: maven
+
+      - name: Run tests
+        run: ./mvnw -B test
+
+  # Builds the images on every run. On main it also publishes them, tagged with the commit,
   # so every environment runs exactly the same image.
   images:
     name: Container images build
@@ -89,7 +107,7 @@ jobs:
         env:
           TAG: ${{ steps.tag.outputs.tag }}
         run: |
-          for app in backend frontend; do
+          for app in backend frontend config-server; do
             docker build \
               --label "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}" \
               --label "org.opencontainers.image.revision=${{ github.sha }}" \
@@ -104,7 +122,7 @@ jobs:
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
           # The registry occasionally refuses a push, seen when a package is first created; retry.
-          for app in backend frontend; do
+          for app in backend frontend config-server; do
             for attempt in 1 2 3; do
               docker push "$IMAGE_REPOSITORY/shopflow-$app:$TAG" && break
               if [ "$attempt" = 3 ]; then exit 1; fi
@@ -117,7 +135,7 @@ jobs:
   deploy-dev:
     name: Deploy to dev
     if: github.event_name == 'push'
-    needs: [backend, frontend, images]
+    needs: [backend, frontend, config-server, images]
     runs-on: [self-hosted, shopflow-local]
     environment:
       name: dev

@@ -8,7 +8,7 @@ configMapGenerator:
   - name: shopflow-env
     behavior: merge
     literals:
-      - APP_ENVIRONMENT=qa
+      - SPRING_PROFILES_ACTIVE=qa
 
 replicas:
   - name: backend

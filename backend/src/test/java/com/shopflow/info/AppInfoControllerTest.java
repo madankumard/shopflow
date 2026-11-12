@@ -11,7 +11,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 /** Unit test: the web layer alone. */
 @WebMvcTest(controllers = AppInfoController.class,
-		properties = { "app.environment=qa", "app.version=abc1234" })
+		properties = { "app.environment=qa", "app.version=abc1234", "app.banner=Test data only" })
 class AppInfoControllerTest {
 
 	@Autowired
@@ -22,7 +22,8 @@ class AppInfoControllerTest {
 		mvc.perform(get("/api/info"))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.environment").value("qa"))
-			.andExpect(jsonPath("$.version").value("abc1234"));
+			.andExpect(jsonPath("$.version").value("abc1234"))
+			.andExpect(jsonPath("$.banner").value("Test data only"));
 	}
 
 }

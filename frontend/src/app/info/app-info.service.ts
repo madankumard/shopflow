@@ -5,6 +5,8 @@ import { Observable } from 'rxjs';
 export interface AppInfo {
   environment: string;
   version: string;
+  /** An announcement for this environment; empty when there is none. */
+  banner: string;
 }
 
 @Injectable({ providedIn: 'root' })

@@ -2,7 +2,7 @@
 .SYNOPSIS
     Deploys one image tag to one environment and waits until it is running.
 .DESCRIPTION
-    Applies the environment's kustomize overlay with both images pinned to the given tag.
+    Applies the environment's kustomize overlay with our images pinned to the given tag.
     Used by the deploy pipeline and usable by hand.
 .EXAMPLE
     .\infra\deploy.ps1 -Environment dev -Tag 3f2a9c1
@@ -25,18 +25,19 @@ kind: Kustomization
 resources:
   - ../../overlays/$Environment
 images:
-  - name: $ImageRepository/shopflow-backend
-    newTag: "$Tag"
-  - name: $ImageRepository/shopflow-frontend
-    newTag: "$Tag"
+$(($AppImages | ForEach-Object { "  - name: $ImageRepository/$_`n    newTag: `"$Tag`"" }) -join "`n")
 "@
 [IO.File]::WriteAllText((Join-Path $deployDir 'kustomization.yaml'), $kustomization)
+
+# The manifests refer to these secrets; make sure they exist (they are never overwritten).
+Initialize-ClusterSecrets $Environment
 
 Write-Host "[$Environment] deploying tag $Tag"
 kubectl --context $context apply -k $deployDir
 if ($LASTEXITCODE -ne 0) { throw "[$Environment] kubectl apply failed" }
 
-foreach ($workload in 'statefulset/db', 'deployment/backend', 'deployment/frontend') {
+# In dependency order: the backend needs the database, Vault and the Config Server.
+foreach ($workload in 'statefulset/db', 'deployment/vault', 'deployment/config-server', 'deployment/backend', 'deployment/frontend') {
     # Generous: on a first deploy the cluster may still be downloading images.
     kubectl --context $context -n $Namespace rollout status $workload --timeout=600s
     if ($LASTEXITCODE -ne 0) {

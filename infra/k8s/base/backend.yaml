@@ -1,3 +1,9 @@
+# The identity the backend presents to Vault.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: backend
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -23,28 +29,30 @@ spec:
       labels:
         app: backend
     spec:
+      serviceAccountName: backend
       containers:
         - name: backend
           # The tag is set at deploy time by infra/deploy.ps1.
           image: ghcr.io/madankumard/shopflow-backend
           ports:
             - containerPort: 8080
+          # Sets SPRING_PROFILES_ACTIVE, which decides which settings file the Config Server returns.
           envFrom:
             - configMapRef:
                 name: shopflow-env
           env:
             - name: DB_URL
               value: jdbc:postgresql://db:5432/shopflow
-            - name: DB_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: shopflow-db
-                  key: username
-            - name: DB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: shopflow-db
-                  key: password
+            # Ordinary settings come from the Config Server, the database credentials from Vault.
+            # The backend holds no password: if either is unreachable it refuses to start.
+            - name: CONFIG_SERVER_ENABLED
+              value: "true"
+            - name: VAULT_ENABLED
+              value: "true"
+            - name: VAULT_URI
+              value: http://vault:8200
+            - name: SPRING_CONFIG_IMPORT
+              value: configserver:http://config-server:8888,vault://
             - name: JAVA_TOOL_OPTIONS
               value: -XX:MaxRAMPercentage=60
           # Gives the JVM up to two minutes to start before the other probes apply.
