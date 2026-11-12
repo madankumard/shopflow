@@ -10,6 +10,8 @@ $Environments = [ordered]@{
 
 $Namespace = 'shopflow'
 $ImageRepository = 'ghcr.io/madankumard'
+# Keep in step with infra/k8s/base/postgres.yaml.
+$PostgresImage = 'postgres:18'
 
 function Get-KubeContext([string]$Environment) {
     "kind-shopflow-$Environment"

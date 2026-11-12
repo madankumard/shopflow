@@ -37,7 +37,8 @@ kubectl --context $context apply -k $deployDir
 if ($LASTEXITCODE -ne 0) { throw "[$Environment] kubectl apply failed" }
 
 foreach ($workload in 'statefulset/db', 'deployment/backend', 'deployment/frontend') {
-    kubectl --context $context -n $Namespace rollout status $workload --timeout=240s
+    # Generous: on a first deploy the cluster may still be downloading images.
+    kubectl --context $context -n $Namespace rollout status $workload --timeout=600s
     if ($LASTEXITCODE -ne 0) {
         kubectl --context $context -n $Namespace get pods
         throw "[$Environment] $workload did not become ready"
