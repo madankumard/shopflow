@@ -7,10 +7,10 @@ Order and inventory management system, built as an end-to-end learning project.
 - `backend/` — Spring Boot 4 (Java 25, Maven wrapper), package root `com.shopflow`, one sub-package per feature (e.g. `product`).
 - `frontend/` — Angular 22 (standalone components, signals, Vitest), one folder per feature under `src/app/` (e.g. `products`).
 - `config-server/` — Spring Cloud Config Server (own Maven project); serves each environment's settings from the separate public repo `madankumard/shopflow-config` (cloned locally at `..\shopflow-config`).
-- `docker-compose.yml` — local stack: Postgres 18, backend, and frontend served by nginx.
+- `docker-compose.yml` — local stack: Postgres 18, Keycloak, backend, and frontend served by nginx.
 - `infra/kind/` — one kind cluster definition per environment (dev, qa, preprod, prod); each cluster stands in for a separate server.
 - `infra/k8s/` — kustomize manifests: `base/` holds what all environments share, `overlays/<env>/` only what differs.
-- `infra/*.ps1` — scripts to create the clusters, deploy a tag, smoke-test an environment and start the CI runner.
+- `infra/*.ps1` — scripts to create the clusters, deploy a tag, smoke-test an environment, show its test logins, reload its settings and start the CI runner.
 - `.github/workflows/ci.yml` — tests and image builds on every pull request; on `main` it also publishes images to `ghcr.io/madankumard` and promotes them dev → qa → preprod → prod.
 
 ## Commands
@@ -23,8 +23,9 @@ Order and inventory management system, built as an end-to-end learning project.
 - Environment URLs: dev http://localhost:8081, qa :8082, preprod :8083, prod :8084. kubectl contexts are `kind-shopflow-<env>`, namespace `shopflow`.
 - After a Windows restart: start Docker Desktop, then `.\infra\start-runner.ps1` (the self-hosted runner lives in `%USERPROFILE%\actions-runner`).
 - Change a setting in one environment: edit `backend-<env>.yml` in the `shopflow-config` repo, push, then `.\infra\reload-config.ps1 -Environment <env>`. No image is rebuilt.
+- Test logins for an environment (users `customer1`, `warehouse1`, `admin1`; passwords are generated per cluster): `.\infra\show-logins.ps1 -Environment dev`. In the local compose stack the password is `shopflow`.
 - Config Server tests: `cd config-server; .\mvnw.cmd test`
-- Day-to-day development: `docker compose up -d db`, then `cd backend; .\mvnw.cmd spring-boot:run` and `cd frontend; npx ng serve` (the dev server proxies `/api` to port 8080).
+- Day-to-day development: `docker compose up -d db keycloak`, then `cd backend; .\mvnw.cmd spring-boot:run` and `cd frontend; npx ng serve` (the dev server proxies `/api` to port 8080 and `/auth` to Keycloak on 8180).
 
 ## Conventions
 
@@ -36,10 +37,14 @@ Order and inventory management system, built as an end-to-end learning project.
 - Environment-specific values are never hard-coded: read them from `${ENV_VAR:local-default}` in `application.properties`.
 - The JVM runs in UTC (Postgres rejects the legacy `Asia/Calcutta` zone name that Windows reports).
 - Always use `.\mvnw.cmd`; the system Maven (3.6.3) is too old.
-- `main` is protected: work on a branch and merge through a pull request once the three CI checks pass. Pre-prod and prod deployments wait for a manual approval in GitHub.
+- `main` is protected: work on a branch and merge through a pull request once the four CI checks pass. Pre-prod and prod deployments wait for a manual approval in GitHub.
 - Ordinary per-environment settings go in the `shopflow-config` repo (`backend.yml` shared, `backend-<env>.yml` per environment); never bake them into an image, and never put a secret there. The overlays in `infra/k8s/overlays/<env>/` hold only the Spring profile and replica counts.
 - Secrets reach the backend through Vault (`secret/backend`, Kubernetes login as service account `backend`). Vault runs in dev mode: it is re-seeded on every start by `infra/k8s/base/vault/seed.sh` from the per-cluster `shopflow-db` Secret, which is generated once and never committed.
 - Locally and in tests the Config Server and Vault clients are off (`CONFIG_SERVER_ENABLED`, `VAULT_ENABLED` default to false) and the defaults in `application.properties` apply.
+- Login is Keycloak (realm `shopflow`, roles `customer`, `warehouse`, `admin`, defined in `infra/k8s/base/keycloak/shopflow-realm.json`). Browsers reach it at `<app address>/auth` through the frontend's nginx; the backend only validates tokens. Keycloak runs in development mode and reloads that realm file on every start, so change users and roles in the file, not in the admin console.
+- Access rules live in one place, `backend/.../security/SecurityConfig.java`: anything not explicitly opened there requires a login. Hiding a control in the frontend is a convenience, never the rule. Test each rule in the feature's `@WebMvcTest` (import `SecurityConfig`, mock `JwtDecoder`) for no login, wrong role and right role.
+- Frontend code gets the user from `AuthService`; component specs use `provideFakeAuth` from `src/app/auth/testing.ts`.
+- Files that run or are parsed inside Linux containers (`*.sh`, `*.hcl`, `*.json`) are pinned to LF in `.gitattributes`. Before trusting a manual cluster test, deploy from a fresh `git clone`: the runner checks out on Windows, and a working copy can hide line-ending problems.
 - Infra scripts must run on Windows PowerShell 5.1 (the runner uses it): ASCII only, no `&&`, no ternaries.
 
 ## Roadmap
@@ -47,6 +52,6 @@ Order and inventory management system, built as an end-to-end learning project.
 1. Backend + frontend skeletons, local stack (done)
 2. GitHub repo, CI with tests, self-hosted runner (done; automated AI review on pull requests deferred)
 3. Four `kind` clusters (dev, QA, pre-prod, prod) with promotion pipeline (done)
-4. Spring Cloud Config Server + Vault for per-environment configuration and secrets (dev-mode Vault first; production-mode Vault in pre-prod and prod to follow)
-5. Auth (Keycloak), orders workflow, reports, Playwright end-to-end tests
+4. Spring Cloud Config Server + Vault for per-environment configuration and secrets (done; Vault stays in dev mode by choice, production-mode Vault was dropped)
+5. Auth (Keycloak) with roles (done), then orders workflow, reports, Playwright end-to-end tests
 6. Replicated Postgres in pre-prod and prod (CloudNativePG operator): a primary with a streaming standby, automatic failover, and backups; dev and QA keep a single instance

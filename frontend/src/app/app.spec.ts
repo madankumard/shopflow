@@ -3,16 +3,24 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { App } from './app';
+import { createFakeAuth, provideFakeAuth } from './auth/testing';
 
 describe('App', () => {
   let fixture: ComponentFixture<App>;
   let http: HttpTestingController;
   let compiled: HTMLElement;
+  let auth: ReturnType<typeof createFakeAuth>;
 
   beforeEach(async () => {
+    auth = createFakeAuth(null, 'loading');
     await TestBed.configureTestingModule({
       imports: [App],
-      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+      providers: [
+        provideRouter([]),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideFakeAuth(auth),
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(App);
@@ -60,5 +68,42 @@ describe('App', () => {
     expect(compiled.querySelector('.env-badge')).toBeNull();
     expect(compiled.querySelector('.env-banner')).toBeNull();
     expect(compiled.querySelector('h1')?.textContent).toContain('ShopFlow');
+  });
+
+  describe('login', () => {
+    const info = { environment: 'local', version: 'dev', banner: '' };
+
+    it('shows neither button while the login check is still running', () => {
+      http.expectOne('/api/info').flush(info);
+
+      expect(compiled.querySelector('.auth button')).toBeNull();
+    });
+
+    it('offers Log in to a visitor and starts the login when clicked', async () => {
+      http.expectOne('/api/info').flush(info);
+      auth.status.set('ready');
+      await fixture.whenStable();
+
+      const button = compiled.querySelector<HTMLButtonElement>('.auth .login');
+      expect(button?.textContent).toContain('Log in');
+      expect(compiled.querySelector('.auth .logout')).toBeNull();
+
+      button!.click();
+      expect(auth.login).toHaveBeenCalled();
+    });
+
+    it('shows the user, their roles and Log out once logged in', async () => {
+      http.expectOne('/api/info').flush(info);
+      auth.user.set({ username: 'admin1', roles: ['admin'] });
+      auth.status.set('ready');
+      await fixture.whenStable();
+
+      expect(compiled.querySelector('.auth .user')?.textContent).toContain('admin1');
+      expect(compiled.querySelector('.auth .roles')?.textContent).toContain('admin');
+      expect(compiled.querySelector('.auth .login')).toBeNull();
+
+      compiled.querySelector<HTMLButtonElement>('.auth .logout')!.click();
+      expect(auth.logout).toHaveBeenCalled();
+    });
   });
 });

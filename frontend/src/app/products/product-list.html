@@ -34,3 +34,7 @@
     }
   }
 }
+
+@if (auth.isAdmin()) {
+  <app-product-form (created)="load()" />
+}

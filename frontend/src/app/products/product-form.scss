@@ -1,0 +1,59 @@
+.product-form {
+  margin-top: 2rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid #e2e5ea;
+  border-radius: 6px;
+  background: #f7f8fa;
+
+  h3 {
+    margin: 0 0 0.75rem;
+    font-size: 1rem;
+  }
+}
+
+.fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.8rem;
+    color: #5b6472;
+  }
+
+  input {
+    padding: 0.4rem 0.5rem;
+    border: 1px solid #c5cad3;
+    border-radius: 4px;
+    font: inherit;
+    color: #16202e;
+  }
+
+  input[type='number'] {
+    width: 7rem;
+  }
+
+  button {
+    padding: 0.45rem 1rem;
+    border: 0;
+    border-radius: 4px;
+    background: #16202e;
+    color: #fff;
+    font: inherit;
+    cursor: pointer;
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+}
+
+.error {
+  margin: 0.75rem 0 0;
+  color: #b3261e;
+}

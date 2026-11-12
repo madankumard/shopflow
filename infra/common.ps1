@@ -13,8 +13,8 @@ $ImageRepository = 'ghcr.io/madankumard'
 # Our own images, built by CI and tagged with the commit.
 $AppImages = 'shopflow-backend', 'shopflow-frontend', 'shopflow-config-server'
 # Third-party images, copied into each cluster from this machine so the clusters do not each
-# download them. Keep in step with infra/k8s/base/postgres.yaml and vault.yaml.
-$PreloadImages = 'postgres:18', 'hashicorp/vault:2.2.1'
+# download them. Keep in step with infra/k8s/base/postgres.yaml, vault.yaml and keycloak.yaml.
+$PreloadImages = 'postgres:18', 'hashicorp/vault:2.2.1', 'quay.io/keycloak/keycloak:26.8.1'
 
 function Get-KubeContext([string]$Environment) {
     "kind-shopflow-$Environment"
@@ -57,6 +57,8 @@ function Initialize-ClusterSecrets([string]$Environment) {
     $secrets = [ordered]@{
         'shopflow-db'    = { @('--from-literal=username=shopflow', "--from-literal=password=$(New-Password)") }
         'shopflow-vault' = { @("--from-literal=root-token=$(New-Password)") }
+        # admin-password: Keycloak's own admin console. user-password: the three test users.
+        'shopflow-keycloak' = { @("--from-literal=admin-password=$(New-Password)", "--from-literal=user-password=$(New-Password)") }
     }
     foreach ($name in $secrets.Keys) {
         kubectl --context $context -n $Namespace get secret $name 2>$null | Out-Null

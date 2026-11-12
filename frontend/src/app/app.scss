@@ -50,6 +50,37 @@
   }
 }
 
+// Login state: sits at the far right, after the badge when there is one.
+.auth {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+
+  // With no badge, this is what pushes the block to the right.
+  &:nth-child(3) {
+    margin-left: auto;
+  }
+
+  .roles {
+    color: #b9c4d4;
+  }
+
+  button {
+    padding: 0.25rem 0.8rem;
+    border: 1px solid #b9c4d4;
+    border-radius: 4px;
+    background: transparent;
+    color: #fff;
+    font: inherit;
+    cursor: pointer;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+  }
+}
+
 // An announcement set per environment in the shopflow-config repo.
 .env-banner {
   margin: 0;

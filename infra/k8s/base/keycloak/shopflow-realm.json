@@ -1,0 +1,69 @@
+{
+  "realm": "shopflow",
+  "displayName": "ShopFlow",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "roles": {
+    "realm": [
+      { "name": "customer", "description": "Browses the catalogue and places orders" },
+      { "name": "warehouse", "description": "Packs and ships orders" },
+      { "name": "admin", "description": "Manages the catalogue and everything else" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "shopflow-web",
+      "name": "ShopFlow web app",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": [
+        "http://localhost:4200/*",
+        "http://localhost:8081/*",
+        "http://localhost:8082/*",
+        "http://localhost:8083/*",
+        "http://localhost:8084/*"
+      ],
+      "webOrigins": ["+"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "+"
+      }
+    }
+  ],
+  "users": [
+    {
+      "username": "customer1",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "customer1@shopflow.test",
+      "firstName": "Casey",
+      "lastName": "Customer",
+      "credentials": [{ "type": "password", "value": "${SHOPFLOW_USER_PASSWORD}", "temporary": false }],
+      "realmRoles": ["customer"]
+    },
+    {
+      "username": "warehouse1",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "warehouse1@shopflow.test",
+      "firstName": "Wren",
+      "lastName": "Warehouse",
+      "credentials": [{ "type": "password", "value": "${SHOPFLOW_USER_PASSWORD}", "temporary": false }],
+      "realmRoles": ["warehouse"]
+    },
+    {
+      "username": "admin1",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "admin1@shopflow.test",
+      "firstName": "Alex",
+      "lastName": "Admin",
+      "credentials": [{ "type": "password", "value": "${SHOPFLOW_USER_PASSWORD}", "temporary": false }],
+      "realmRoles": ["admin"]
+    }
+  ]
+}

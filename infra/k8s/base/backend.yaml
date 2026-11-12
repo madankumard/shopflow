@@ -53,6 +53,9 @@ spec:
               value: http://vault:8200
             - name: SPRING_CONFIG_IMPORT
               value: configserver:http://config-server:8888,vault://
+            # Where to fetch the keys that prove a login token really came from this cluster's Keycloak.
+            - name: KEYCLOAK_JWKS_URL
+              value: http://keycloak:8080/auth/realms/shopflow/protocol/openid-connect/certs
             - name: JAVA_TOOL_OPTIONS
               value: -XX:MaxRAMPercentage=60
           # Gives the JVM up to two minutes to start before the other probes apply.
