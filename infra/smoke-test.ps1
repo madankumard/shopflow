@@ -46,4 +46,14 @@ $products = (Get-WithRetry "$url/api/products").Content | ConvertFrom-Json
 if (@($products).Count -lt 1) { throw "[$Environment] the products API returned no products" }
 Write-Host "[$Environment] products API OK ($(@($products).Count) products)"
 
+# Proves the per-environment settings reached the app, and that it is the expected build.
+$info = (Get-WithRetry "$url/api/info").Content | ConvertFrom-Json
+if ($info.environment -ne $Environment) {
+    throw "[$Environment] the app reports environment '$($info.environment)'"
+}
+if ($Tag -and $info.version -ne $Tag) {
+    throw "[$Environment] the app reports version '$($info.version)', expected $Tag"
+}
+Write-Host "[$Environment] app info OK (environment $($info.environment), version $($info.version))"
+
 Write-Host "[$Environment] smoke test passed"

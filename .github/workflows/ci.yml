@@ -93,6 +93,7 @@ jobs:
             docker build \
               --label "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}" \
               --label "org.opencontainers.image.revision=${{ github.sha }}" \
+              --build-arg "APP_VERSION=$TAG" \
               -t "$IMAGE_REPOSITORY/shopflow-$app:$TAG" "$app"
           done
 

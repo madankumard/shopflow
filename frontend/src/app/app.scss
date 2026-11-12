@@ -22,6 +22,34 @@
   }
 }
 
+// Shows which environment and build this is; one colour per environment.
+.env-badge {
+  margin-left: auto;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  background: #5b6b80;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+
+  &[data-env='dev'] {
+    background: #2e7d32;
+  }
+
+  &[data-env='qa'] {
+    background: #1565c0;
+  }
+
+  &[data-env='preprod'] {
+    background: #b45309;
+  }
+
+  &[data-env='prod'] {
+    background: #b3261e;
+  }
+}
+
 .app-main {
   max-width: 60rem;
   margin: 0 auto;

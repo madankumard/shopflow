@@ -3,6 +3,11 @@
   <nav>
     <a routerLink="/products" routerLinkActive="active">Products</a>
   </nav>
+  @if (info(); as info) {
+    <span class="env-badge" [attr.data-env]="info.environment">
+      {{ info.environment }} · {{ info.version }}
+    </span>
+  }
 </header>
 
 <main class="app-main">
