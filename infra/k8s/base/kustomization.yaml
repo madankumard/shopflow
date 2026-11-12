@@ -1,0 +1,17 @@
+# Everything the environments have in common. Each overlay in ../overlays changes only what differs.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: shopflow
+
+resources:
+  - namespace.yaml
+  - postgres.yaml
+  - backend.yaml
+  - frontend.yaml
+
+# Ordinary (non-secret) settings; overlays merge their own values into this.
+configMapGenerator:
+  - name: shopflow-env
+    literals:
+      - APP_ENVIRONMENT=local

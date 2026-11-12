@@ -8,10 +8,14 @@ on:
 permissions:
   contents: read
 
-# A newer push to the same branch or pull request cancels the run it replaces.
+# A newer push to a pull request cancels the run it replaces.
+# Runs on main are never cancelled: they may be part-way through a deployment.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  IMAGE_REPOSITORY: ghcr.io/madankumard
 
 jobs:
   backend:
@@ -64,11 +68,108 @@ jobs:
       - name: Build
         run: npx ng build
 
+  # Builds both images on every run. On main it also publishes them, tagged with the commit,
+  # so every environment runs exactly the same image.
   images:
     name: Container images build
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
     steps:
       - uses: actions/checkout@v7
 
-      - name: Build backend and frontend images
-        run: docker compose build backend frontend
+      - name: Work out the image tag
+        id: tag
+        run: echo "tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Build images
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          for app in backend frontend; do
+            docker build \
+              --label "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}" \
+              --label "org.opencontainers.image.revision=${{ github.sha }}" \
+              -t "$IMAGE_REPOSITORY/shopflow-$app:$TAG" "$app"
+          done
+
+      - name: Publish images
+        if: github.event_name == 'push'
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          for app in backend frontend; do
+            docker push "$IMAGE_REPOSITORY/shopflow-$app:$TAG"
+          done
+
+  # Promotion pipeline. It runs only for commits on main, on the self-hosted runner,
+  # because the four environments are kind clusters on that machine.
+  deploy-dev:
+    name: Deploy to dev
+    if: github.event_name == 'push'
+    needs: [backend, frontend, images]
+    runs-on: [self-hosted, shopflow-local]
+    environment:
+      name: dev
+      url: http://localhost:8081
+    steps:
+      - uses: actions/checkout@v7
+      - name: Deploy
+        shell: powershell
+        run: .\infra\deploy.ps1 -Environment dev -Tag ${{ needs.images.outputs.tag }}
+      - name: Smoke test
+        shell: powershell
+        run: .\infra\smoke-test.ps1 -Environment dev -Tag ${{ needs.images.outputs.tag }}
+
+  deploy-qa:
+    name: Deploy to QA
+    needs: [images, deploy-dev]
+    runs-on: [self-hosted, shopflow-local]
+    environment:
+      name: qa
+      url: http://localhost:8082
+    steps:
+      - uses: actions/checkout@v7
+      - name: Deploy
+        shell: powershell
+        run: .\infra\deploy.ps1 -Environment qa -Tag ${{ needs.images.outputs.tag }}
+      - name: Smoke test
+        shell: powershell
+        run: .\infra\smoke-test.ps1 -Environment qa -Tag ${{ needs.images.outputs.tag }}
+
+  # The preprod and prod environments require a manual approval in GitHub before their job starts.
+  deploy-preprod:
+    name: Deploy to pre-prod
+    needs: [images, deploy-qa]
+    runs-on: [self-hosted, shopflow-local]
+    environment:
+      name: preprod
+      url: http://localhost:8083
+    steps:
+      - uses: actions/checkout@v7
+      - name: Deploy
+        shell: powershell
+        run: .\infra\deploy.ps1 -Environment preprod -Tag ${{ needs.images.outputs.tag }}
+      - name: Smoke test
+        shell: powershell
+        run: .\infra\smoke-test.ps1 -Environment preprod -Tag ${{ needs.images.outputs.tag }}
+
+  deploy-prod:
+    name: Deploy to prod
+    needs: [images, deploy-preprod]
+    runs-on: [self-hosted, shopflow-local]
+    environment:
+      name: prod
+      url: http://localhost:8084
+    steps:
+      - uses: actions/checkout@v7
+      - name: Deploy
+        shell: powershell
+        run: .\infra\deploy.ps1 -Environment prod -Tag ${{ needs.images.outputs.tag }}
+      - name: Smoke test
+        shell: powershell
+        run: .\infra\smoke-test.ps1 -Environment prod -Tag ${{ needs.images.outputs.tag }}

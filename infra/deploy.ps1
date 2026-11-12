@@ -1,0 +1,47 @@
+<#
+.SYNOPSIS
+    Deploys one image tag to one environment and waits until it is running.
+.DESCRIPTION
+    Applies the environment's kustomize overlay with both images pinned to the given tag.
+    Used by the deploy pipeline and usable by hand.
+.EXAMPLE
+    .\infra\deploy.ps1 -Environment dev -Tag 3f2a9c1
+#>
+param(
+    [Parameter(Mandatory)][string]$Environment,
+    [Parameter(Mandatory)][string]$Tag
+)
+
+. "$PSScriptRoot\common.ps1"
+Assert-Environment $Environment
+$context = Get-KubeContext $Environment
+
+# A throwaway kustomization that wraps the overlay and pins the image tag.
+$deployDir = Join-Path $PSScriptRoot "k8s\.deploy\$Environment"
+New-Item -ItemType Directory -Force $deployDir | Out-Null
+$kustomization = @"
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../overlays/$Environment
+images:
+  - name: $ImageRepository/shopflow-backend
+    newTag: "$Tag"
+  - name: $ImageRepository/shopflow-frontend
+    newTag: "$Tag"
+"@
+[IO.File]::WriteAllText((Join-Path $deployDir 'kustomization.yaml'), $kustomization)
+
+Write-Host "[$Environment] deploying tag $Tag"
+kubectl --context $context apply -k $deployDir
+if ($LASTEXITCODE -ne 0) { throw "[$Environment] kubectl apply failed" }
+
+foreach ($workload in 'statefulset/db', 'deployment/backend', 'deployment/frontend') {
+    kubectl --context $context -n $Namespace rollout status $workload --timeout=240s
+    if ($LASTEXITCODE -ne 0) {
+        kubectl --context $context -n $Namespace get pods
+        throw "[$Environment] $workload did not become ready"
+    }
+}
+
+Write-Host "[$Environment] tag $Tag is running at $(Get-EnvironmentUrl $Environment)"
