@@ -25,7 +25,7 @@ foreach ($e in $Environment) {
     $node = "shopflow-$e-control-plane"
 
     $before = Get-ImageStoreSizeMB $node
-    $removed = @(docker exec $node crictl rmi --prune 2>$null).Count
+    $removed = @(docker exec $node crictl rmi --prune 2>$null | Where-Object { $_ -match '^Deleted:' }).Count
     if ($LASTEXITCODE -ne 0) { throw "[$e] could not prune images" }
     $after = Get-ImageStoreSizeMB $node
 
