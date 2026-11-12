@@ -102,8 +102,13 @@ jobs:
           TAG: ${{ steps.tag.outputs.tag }}
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          # The registry occasionally refuses a push, seen when a package is first created; retry.
           for app in backend frontend; do
-            docker push "$IMAGE_REPOSITORY/shopflow-$app:$TAG"
+            for attempt in 1 2 3; do
+              docker push "$IMAGE_REPOSITORY/shopflow-$app:$TAG" && break
+              if [ "$attempt" = 3 ]; then exit 1; fi
+              sleep 10
+            done
           done
 
   # Promotion pipeline. It runs only for commits on main, on the self-hosted runner,

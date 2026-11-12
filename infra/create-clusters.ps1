@@ -23,6 +23,7 @@ function New-Password {
 }
 
 $existing = & $kind get clusters
+$postgresPulled = $false
 
 foreach ($e in $Environment) {
     Assert-Environment $e
@@ -37,6 +38,16 @@ foreach ($e in $Environment) {
         & $kind create cluster --config "$PSScriptRoot\kind\$e.yaml" --wait 120s
         if ($LASTEXITCODE -ne 0) { throw "kind could not create $cluster" }
     }
+
+    # Copy Postgres in from this machine so each cluster does not download it separately.
+    if (-not $postgresPulled) {
+        docker pull -q $PostgresImage | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw "could not pull $PostgresImage" }
+        $postgresPulled = $true
+    }
+    $ErrorActionPreference = 'Continue'   # kind reports progress on stderr
+    & $kind load docker-image $PostgresImage --name $cluster 2>&1 | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "could not load $PostgresImage into $cluster" }
 
     kubectl --context $context apply -f "$PSScriptRoot\k8s\base\namespace.yaml" | Out-Null
     if ($LASTEXITCODE -ne 0) { throw "could not create the namespace in $cluster" }
