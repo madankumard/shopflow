@@ -3,7 +3,7 @@
     Creates the kind clusters that stand in for the dev, qa, preprod and prod servers.
 .DESCRIPTION
     Safe to re-run: existing clusters and secrets are left untouched.
-    Each cluster gets its own generated database password, stored only as a Kubernetes Secret.
+    Each cluster gets its own generated database password and Vault token, stored only as Kubernetes Secrets.
 .EXAMPLE
     .\infra\create-clusters.ps1
     .\infra\create-clusters.ps1 -Environment dev
@@ -15,15 +15,9 @@ param(
 . "$PSScriptRoot\common.ps1"
 $kind = Get-KindPath
 
-function New-Password {
-    $chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-    $bytes = New-Object byte[] 32
-    [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
-    -join ($bytes | ForEach-Object { $chars[$_ % $chars.Length] })
-}
 
 $existing = & $kind get clusters
-$postgresPulled = $false
+$imagesPulled = $false
 
 foreach ($e in $Environment) {
     Assert-Environment $e
@@ -39,27 +33,21 @@ foreach ($e in $Environment) {
         if ($LASTEXITCODE -ne 0) { throw "kind could not create $cluster" }
     }
 
-    # Copy Postgres in from this machine so each cluster does not download it separately.
-    if (-not $postgresPulled) {
-        docker pull -q $PostgresImage | Out-Null
-        if ($LASTEXITCODE -ne 0) { throw "could not pull $PostgresImage" }
-        $postgresPulled = $true
+    # Copy third-party images in from this machine so each cluster does not download them.
+    if (-not $imagesPulled) {
+        foreach ($image in $PreloadImages) {
+            docker pull -q $image | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw "could not pull $image" }
+        }
+        $imagesPulled = $true
     }
     $ErrorActionPreference = 'Continue'   # kind reports progress on stderr
-    & $kind load docker-image $PostgresImage --name $cluster 2>&1 | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw "could not load $PostgresImage into $cluster" }
-
-    kubectl --context $context apply -f "$PSScriptRoot\k8s\base\namespace.yaml" | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw "could not create the namespace in $cluster" }
-
-    # Only ever created once: Postgres keeps the password it was first started with.
-    kubectl --context $context -n $Namespace get secret shopflow-db 2>$null | Out-Null
-    if ($LASTEXITCODE -ne 0) {
-        kubectl --context $context -n $Namespace create secret generic shopflow-db `
-            "--from-literal=username=shopflow" "--from-literal=password=$(New-Password)" | Out-Null
-        if ($LASTEXITCODE -ne 0) { throw "could not create the database secret in $cluster" }
-        Write-Host "[$e] generated database secret"
+    foreach ($image in $PreloadImages) {
+        & $kind load docker-image $image --name $cluster 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw "could not load $image into $cluster" }
     }
+
+    Initialize-ClusterSecrets $e
 
     Write-Host "[$e] ready at $(Get-EnvironmentUrl $e)"
 }

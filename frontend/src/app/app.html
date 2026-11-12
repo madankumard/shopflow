@@ -10,6 +10,10 @@
   }
 </header>
 
+@if (info()?.banner; as banner) {
+  <p class="env-banner" role="status">{{ banner }}</p>
+}
+
 <main class="app-main">
   <router-outlet />
 </main>

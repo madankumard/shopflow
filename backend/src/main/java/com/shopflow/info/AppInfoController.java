@@ -12,8 +12,8 @@ public class AppInfoController {
 	private final AppInfoResponse info;
 
 	public AppInfoController(@Value("${app.environment}") String environment,
-			@Value("${app.version}") String version) {
-		this.info = new AppInfoResponse(environment, version);
+			@Value("${app.version}") String version, @Value("${app.banner}") String banner) {
+		this.info = new AppInfoResponse(environment, version, banner);
 	}
 
 	@GetMapping

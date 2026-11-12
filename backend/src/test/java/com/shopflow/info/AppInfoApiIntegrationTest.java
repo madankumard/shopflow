@@ -12,7 +12,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
 
-/** Integration test: the whole app, started without any environment settings. */
+/** Integration test: the whole app, started with no Config Server or Vault, as in local development. */
 @Import(TestcontainersConfiguration.class)
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -26,7 +26,8 @@ class AppInfoApiIntegrationTest {
 		mvc.perform(get("/api/info"))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.environment").value("local"))
-			.andExpect(jsonPath("$.version").value("dev"));
+			.andExpect(jsonPath("$.version").value("dev"))
+			.andExpect(jsonPath("$.banner").value(""));
 	}
 
 }

@@ -7,11 +7,18 @@ namespace: shopflow
 resources:
   - namespace.yaml
   - postgres.yaml
+  - vault.yaml
+  - config-server.yaml
   - backend.yaml
   - frontend.yaml
 
-# Ordinary (non-secret) settings; overlays merge their own values into this.
 configMapGenerator:
+  # The one setting that stays in the cluster: which environment this is. Overlays set it.
+  # Everything else comes from the shopflow-config repo through the Config Server.
   - name: shopflow-env
     literals:
-      - APP_ENVIRONMENT=local
+      - SPRING_PROFILES_ACTIVE=local
+  - name: vault-seed
+    files:
+      - vault/seed.sh
+      - vault/backend-policy.hcl

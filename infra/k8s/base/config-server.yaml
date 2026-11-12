@@ -1,0 +1,59 @@
+# Spring Cloud Config Server: serves this environment's settings from the shopflow-config repo.
+apiVersion: v1
+kind: Service
+metadata:
+  name: config-server
+spec:
+  selector:
+    app: config-server
+  ports:
+    - port: 8888
+      targetPort: 8888
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: config-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: config-server
+  template:
+    metadata:
+      labels:
+        app: config-server
+    spec:
+      containers:
+        - name: config-server
+          # The tag is set at deploy time by infra/deploy.ps1.
+          image: ghcr.io/madankumard/shopflow-config-server
+          ports:
+            - containerPort: 8888
+          env:
+            - name: CONFIG_GIT_URI
+              value: https://github.com/madankumard/shopflow-config
+            - name: JAVA_TOOL_OPTIONS
+              value: -XX:MaxRAMPercentage=60
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8888
+            periodSeconds: 5
+            failureThreshold: 24
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8888
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8888
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
