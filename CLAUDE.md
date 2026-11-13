@@ -47,6 +47,8 @@ Order and inventory management system, built as an end-to-end learning project.
 - Login is Keycloak (realm `shopflow`, roles `customer`, `warehouse`, `admin`, defined in `infra/k8s/base/keycloak/shopflow-realm.json`). Browsers reach it at `<app address>/auth` through the frontend's nginx; the backend only validates tokens. Keycloak runs in development mode and reloads that realm file on every start, so change users and roles in the file, not in the admin console.
 - Access rules live in one place, `backend/.../security/SecurityConfig.java`: anything not explicitly opened there requires a login. Hiding a control in the frontend is a convenience, never the rule. Test each rule in the feature's `@WebMvcTest` (import `SecurityConfig`, mock `JwtDecoder`) for no login, wrong role and right role.
 - Business rules that change several rows together (placing or cancelling an order and its stock) live in a `@Service` with `@Transactional` methods, not in the controller. Rows that a rule reads and then changes are loaded with a locking query such as `ProductRepository.findAllByIdForUpdate`.
+- Totals and rankings are computed by the database (see `ReportRepository`), not by loading rows into the application. Tests of such figures share a database with other tests, so they assert the change their own data makes, never absolute numbers.
+- A day sent to the frontend as `yyyy-mm-dd` is formatted with no timezone argument; adding one shifts it to the previous day east of Greenwich.
 - A user must never learn that another user's record exists: return 404, not 403, for someone else's order.
 - Frontend code gets the user from `AuthService`; component specs use `provideFakeAuth` from `src/app/auth/testing.ts`.
 - A change to a screen a journey in `e2e/tests/journeys.spec.ts` walks through (login, catalogue, ordering, the Orders page) must keep that journey passing; add a journey only for a new end-to-end flow, and keep detail in the component specs. The journeys run in order and share data, and reuse one product, `E2E-001`, per environment.
@@ -59,4 +61,4 @@ Order and inventory management system, built as an end-to-end learning project.
 2. GitHub repo, CI with tests, self-hosted runner (done; automated AI review on pull requests deferred)
 3. Four `kind` clusters (dev, QA, pre-prod, prod) with promotion pipeline (done)
 4. Spring Cloud Config Server + Vault for per-environment configuration and secrets (done; Vault stays in dev mode by choice, production-mode Vault was dropped)
-5. Auth (Keycloak) with roles (done), orders workflow (done), Playwright end-to-end tests (done), then reports
+5. Auth (Keycloak) with roles, orders workflow, Playwright end-to-end tests, admin reports (done)

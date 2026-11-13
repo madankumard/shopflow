@@ -1,0 +1,97 @@
+.message {
+  color: #5b6472;
+}
+
+.error {
+  color: #b3261e;
+}
+
+.note {
+  margin: 0.25rem 0 0;
+  color: #5b6472;
+  font-size: 0.85rem;
+}
+
+section {
+  margin-top: 1.75rem;
+}
+
+h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+// The three headline numbers.
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 1rem;
+  margin-top: 0;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid #e2e5ea;
+  border-radius: 6px;
+  background: #f7f8fa;
+
+  .value {
+    font-size: 1.6rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .label {
+    color: #5b6472;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 0.45rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid #e2e5ea;
+}
+
+th {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #5b6472;
+}
+
+.number {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+// Daily revenue as a bar, drawn against the busiest day.
+.bar-heading,
+.bar-cell {
+  width: 40%;
+}
+
+.bar {
+  display: block;
+  height: 0.7rem;
+  min-width: 0;
+  border-radius: 2px;
+  background: #1565c0;
+}
+
+// A product with none left stands out from one that is merely low.
+.out td {
+  color: #b3261e;
+  font-weight: 600;
+}

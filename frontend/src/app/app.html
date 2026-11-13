@@ -8,6 +8,9 @@
     @if (auth.isStaff()) {
       <a routerLink="/warehouse" routerLinkActive="active">Orders</a>
     }
+    @if (auth.isAdmin()) {
+      <a routerLink="/reports" routerLinkActive="active">Reports</a>
+    }
   </nav>
   @if (info(); as info) {
     <span class="env-badge" [attr.data-env]="info.environment">

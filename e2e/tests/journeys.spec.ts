@@ -75,13 +75,15 @@ test('a customer logs in, places two orders and sees them under My orders', asyn
   await expect(orderCard(page, orderToCancel).locator('.status')).toHaveText('placed');
 });
 
-test('a customer who opens the warehouse page is sent back to the catalogue', async ({ page }) => {
+test('a customer who opens a staff page is sent back to the catalogue', async ({ page }) => {
   await logIn(page, 'customer1');
 
-  await page.goto('/warehouse');
+  for (const staffPage of ['/warehouse', '/reports']) {
+    await page.goto(staffPage);
 
-  await expect(page).toHaveURL(/\/products$/);
-  await expect(page.getByRole('heading', { name: 'Products' })).toBeVisible();
+    await expect(page).toHaveURL(/\/products$/);
+    await expect(page.getByRole('heading', { name: 'Products' })).toBeVisible();
+  }
 });
 
 test('warehouse staff move the order through packed, shipped and delivered', async ({ page }) => {
@@ -123,6 +125,30 @@ test('an admin cancels the other order', async ({ page }) => {
   await expect(row.getByRole('button')).toHaveCount(0);
   // The delivered order can no longer be cancelled.
   await expect(orderRow(page, orderToDeliver).getByRole('button', { name: 'Cancel' })).toHaveCount(0);
+});
+
+test('an admin opens the reports and finds the sales just made', async ({ page }) => {
+  await logIn(page, 'admin1');
+  await page.getByRole('link', { name: 'Reports', exact: true }).click();
+  await expect(page).toHaveURL(/\/reports$/);
+
+  const tile = (label: string) =>
+    page
+      .locator('app-reports .tile')
+      .filter({ has: page.getByText(label, { exact: true }) })
+      .locator('.value');
+  // The delivered order above counts; the cancelled one is reported separately.
+  await expect(tile('Revenue')).toHaveText(/^\$[\d,]+\.\d{2}$/);
+  expect(Number((await tile('Orders').innerText()).replace(/,/g, ''))).toBeGreaterThanOrEqual(1);
+  expect(Number((await tile('Cancelled orders').innerText()).replace(/,/g, ''))).toBeGreaterThanOrEqual(1);
+
+  // Fourteen days, the last of which is today and has this run's sale in it.
+  const days = page.locator('app-reports .daily tbody tr');
+  await expect(days).toHaveCount(14);
+  expect(Number((await days.last().locator('td').nth(1).innerText()).replace(/,/g, ''))).toBeGreaterThanOrEqual(1);
+
+  await expect(page.locator('app-reports .top-products tbody tr').first()).toBeVisible();
+  await expect(page.locator('app-reports .low-stock .note')).toContainText('or fewer left');
 });
 
 test('the customer sees where both orders ended up, then logs out', async ({ page }) => {

@@ -1,0 +1,114 @@
+<h2>Reports</h2>
+
+@switch (status()) {
+  @case ('loading') {
+    <p class="message">Loading the figures…</p>
+  }
+  @case ('error') {
+    <p class="message error">Could not load the reports. Try again in a moment.</p>
+  }
+  @case ('ready') {
+    @if (report(); as report) {
+      <section class="tiles" aria-label="Summary">
+        <div class="tile">
+          <span class="value">{{ report.orders | number }}</span>
+          <span class="label">Orders</span>
+        </div>
+        <div class="tile">
+          <span class="value">{{ report.revenue | currency }}</span>
+          <span class="label">Revenue</span>
+        </div>
+        <div class="tile">
+          <span class="value">{{ report.cancelledOrders | number }}</span>
+          <span class="label">Cancelled orders</span>
+        </div>
+      </section>
+      <p class="note">Orders and revenue leave out cancelled orders.</p>
+
+      <section class="daily">
+        <h3>Last {{ report.daily.length }} days</h3>
+        @if (busiestDay() === 0) {
+          <p class="message">No sales in this period.</p>
+        } @else {
+          <table>
+            <thead>
+              <tr>
+                <th>Day (UTC)</th>
+                <th class="number">Orders</th>
+                <th class="number">Revenue</th>
+                <th class="bar-heading"></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (day of report.daily; track day.date) {
+                <tr>
+                  <!-- The date arrives as a plain day (yyyy-mm-dd). Format it as it is: asking
+                       for a timezone here shifts it to the day before, east of Greenwich. -->
+                  <td>{{ day.date | date: 'EEE d MMM' }}</td>
+                  <td class="number">{{ day.orders | number }}</td>
+                  <td class="number">{{ day.revenue | currency }}</td>
+                  <td class="bar-cell">
+                    <span class="bar" [style.width.%]="barWidth(day.revenue)"></span>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+      </section>
+
+      <section class="top-products">
+        <h3>Best-selling products</h3>
+        @if (report.topProducts.length === 0) {
+          <p class="message">Nothing has been sold yet.</p>
+        } @else {
+          <table>
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th class="number">Units sold</th>
+                <th class="number">Revenue</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (product of report.topProducts; track product.productId + product.productName) {
+                <tr>
+                  <td>{{ product.productName }}</td>
+                  <td class="number">{{ product.unitsSold | number }}</td>
+                  <td class="number">{{ product.revenue | currency }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+      </section>
+
+      <section class="low-stock">
+        <h3>Low stock</h3>
+        <p class="note">Products with {{ report.lowStockThreshold }} or fewer left.</p>
+        @if (report.lowStock.length === 0) {
+          <p class="message">Every product is above that level.</p>
+        } @else {
+          <table>
+            <thead>
+              <tr>
+                <th>SKU</th>
+                <th>Product</th>
+                <th class="number">In stock</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (product of report.lowStock; track product.id) {
+                <tr [class.out]="product.stockQuantity === 0">
+                  <td>{{ product.sku }}</td>
+                  <td>{{ product.name }}</td>
+                  <td class="number">{{ product.stockQuantity | number }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+      </section>
+    }
+  }
+}
