@@ -7,11 +7,12 @@ Order and inventory management system, built as an end-to-end learning project.
 - `backend/` — Spring Boot 4 (Java 25, Maven wrapper), package root `com.shopflow`, one sub-package per feature (e.g. `product`).
 - `frontend/` — Angular 22 (standalone components, signals, Vitest), one folder per feature under `src/app/` (e.g. `products`).
 - `config-server/` — Spring Cloud Config Server (own Maven project); serves each environment's settings from the separate public repo `madankumard/shopflow-config` (cloned locally at `..\shopflow-config`).
+- `e2e/` — Playwright browser tests (own npm project) that walk the main journeys against a deployed environment.
 - `docker-compose.yml` — local stack: Postgres 18, Keycloak, backend, and frontend served by nginx.
 - `infra/kind/` — one kind cluster definition per environment (dev, qa, preprod, prod); each cluster stands in for a separate server.
 - `infra/k8s/` — kustomize manifests: `base/` holds what all environments share, `overlays/<env>/` only what differs.
 - `infra/*.ps1` — scripts to create the clusters, deploy a tag, smoke-test an environment, show its test logins, reload its settings, remove unused images and start the CI runner.
-- `.github/workflows/ci.yml` — tests and image builds on every pull request; on `main` it also publishes images to `ghcr.io/madankumard` and promotes them dev → qa → preprod → prod.
+- `.github/workflows/ci.yml` — tests and image builds on every pull request; on `main` it also publishes images to `ghcr.io/madankumard` and promotes them dev → qa → browser tests on qa → preprod → prod.
 
 ## Commands
 
@@ -24,6 +25,7 @@ Order and inventory management system, built as an end-to-end learning project.
 - After a Windows restart: start Docker Desktop, then `.\infra\start-runner.ps1` (the self-hosted runner lives in `%USERPROFILE%\actions-runner`).
 - Change a setting in one environment: edit `backend-<env>.yml` in the `shopflow-config` repo, push, then `.\infra\reload-config.ps1 -Environment <env>`. No image is rebuilt.
 - Test logins for an environment (users `customer1`, `warehouse1`, `admin1`; passwords are generated per cluster): `.\infra\show-logins.ps1 -Environment dev`. In the local compose stack the password is `shopflow`.
+- Browser tests against dev or qa (they place real orders, so never pre-prod or prod): `.\infra\e2e-test.ps1 -Environment dev`; add `-Headed` to watch. First use on a machine: `cd e2e; npm ci; npx playwright install chromium`. After a failure: `cd e2e; npx playwright show-report`.
 - Free disk space by removing old image versions from the clusters (not during a deployment): `.\infra\prune-images.ps1`
 - Config Server tests: `cd config-server; .\mvnw.cmd test`
 - Day-to-day development: `docker compose up -d db keycloak`, then `cd backend; .\mvnw.cmd spring-boot:run` and `cd frontend; npx ng serve` (the dev server proxies `/api` to port 8080 and `/auth` to Keycloak on 8180).
@@ -47,6 +49,7 @@ Order and inventory management system, built as an end-to-end learning project.
 - Business rules that change several rows together (placing or cancelling an order and its stock) live in a `@Service` with `@Transactional` methods, not in the controller. Rows that a rule reads and then changes are loaded with a locking query such as `ProductRepository.findAllByIdForUpdate`.
 - A user must never learn that another user's record exists: return 404, not 403, for someone else's order.
 - Frontend code gets the user from `AuthService`; component specs use `provideFakeAuth` from `src/app/auth/testing.ts`.
+- A change to a screen a journey in `e2e/tests/journeys.spec.ts` walks through (login, catalogue, ordering, the Orders page) must keep that journey passing; add a journey only for a new end-to-end flow, and keep detail in the component specs. The journeys run in order and share data, and reuse one product, `E2E-001`, per environment.
 - Files that run or are parsed inside Linux containers (`*.sh`, `*.hcl`, `*.json`) are pinned to LF in `.gitattributes`. Before trusting a manual cluster test, deploy from a fresh `git clone`: the runner checks out on Windows, and a working copy can hide line-ending problems.
 - Infra scripts must run on Windows PowerShell 5.1 (the runner uses it): ASCII only, no `&&`, no ternaries.
 
@@ -56,4 +59,4 @@ Order and inventory management system, built as an end-to-end learning project.
 2. GitHub repo, CI with tests, self-hosted runner (done; automated AI review on pull requests deferred)
 3. Four `kind` clusters (dev, QA, pre-prod, prod) with promotion pipeline (done)
 4. Spring Cloud Config Server + Vault for per-environment configuration and secrets (done; Vault stays in dev mode by choice, production-mode Vault was dropped)
-5. Auth (Keycloak) with roles (done), orders workflow (done), then reports and Playwright end-to-end tests
+5. Auth (Keycloak) with roles (done), orders workflow (done), Playwright end-to-end tests (done), then reports
