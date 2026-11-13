@@ -57,4 +57,3 @@ Order and inventory management system, built as an end-to-end learning project.
 3. Four `kind` clusters (dev, QA, pre-prod, prod) with promotion pipeline (done)
 4. Spring Cloud Config Server + Vault for per-environment configuration and secrets (done; Vault stays in dev mode by choice, production-mode Vault was dropped)
 5. Auth (Keycloak) with roles (done), orders workflow (done), then reports and Playwright end-to-end tests
-6. Replicated Postgres in pre-prod and prod (CloudNativePG operator): a primary with a streaming standby, automatic failover, and backups; dev and QA keep a single instance
