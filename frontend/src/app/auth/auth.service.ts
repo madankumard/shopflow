@@ -30,7 +30,23 @@ export class AuthService {
   /** 'loading' until Keycloak has said whether the visitor is already logged in. */
   readonly status = signal<'loading' | 'ready'>('loading');
   readonly user = signal<User | null>(null);
-  readonly isAdmin = computed(() => this.user()?.roles.includes('admin') ?? false);
+  readonly isAdmin = computed(() => this.hasAnyRole('admin'));
+  readonly isCustomer = computed(() => this.hasAnyRole('customer'));
+  /** The people who work through orders: warehouse staff and admins. */
+  readonly isStaff = computed(() => this.hasAnyRole('warehouse', 'admin'));
+
+  private resolveReady!: () => void;
+  private readonly ready = new Promise<void>((resolve) => (this.resolveReady = resolve));
+
+  hasAnyRole(...roles: string[]): boolean {
+    const mine = this.user()?.roles ?? [];
+    return roles.some((role) => mine.includes(role));
+  }
+
+  /** Resolves once it is known whether the visitor is logged in; route guards wait for this. */
+  whenReady(): Promise<void> {
+    return this.ready;
+  }
 
   /** Finds out, without leaving the page, whether the visitor already has a Keycloak session. */
   async init(): Promise<void> {
@@ -47,6 +63,7 @@ export class AuthService {
       this.user.set(null);
     }
     this.status.set('ready');
+    this.resolveReady();
   }
 
   /** Sends the browser to Keycloak's login page; it returns here afterwards. */

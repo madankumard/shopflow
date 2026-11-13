@@ -1,0 +1,91 @@
+.cart {
+  margin-top: 2rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid #e2e5ea;
+  border-radius: 6px;
+  background: #f7f8fa;
+
+  h3 {
+    margin: 0 0 0.75rem;
+    font-size: 1rem;
+  }
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 0.45rem 0.6rem;
+  text-align: left;
+  border-bottom: 1px solid #e2e5ea;
+}
+
+th {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #5b6472;
+}
+
+tfoot td {
+  border-bottom: 0;
+  font-weight: 600;
+}
+
+.number {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+input[type='number'] {
+  width: 4.5rem;
+  padding: 0.3rem 0.4rem;
+  border: 1px solid #c5cad3;
+  border-radius: 4px;
+  font: inherit;
+  text-align: right;
+}
+
+.place {
+  margin-top: 0.75rem;
+  padding: 0.5rem 1.1rem;
+  border: 0;
+  border-radius: 4px;
+  background: #16202e;
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #1565c0;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.message {
+  margin: 0;
+  color: #5b6472;
+}
+
+.success {
+  margin: 0 0 0.75rem;
+  color: #2e7d32;
+}
+
+.error {
+  margin: 0.75rem 0 0;
+  color: #b3261e;
+}

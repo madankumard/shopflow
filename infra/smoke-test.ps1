@@ -74,6 +74,18 @@ catch {
 if ($status -ne 401) {
     throw "[$Environment] adding a product without a login returned $status, expected 401"
 }
+# Orders exist only for logged-in users.
+$status = 0
+try {
+    Invoke-WebRequest -Uri "$url/api/orders" -UseBasicParsing -TimeoutSec 10 | Out-Null
+    $status = 200
+}
+catch {
+    if ($_.Exception.Response) { $status = [int]$_.Exception.Response.StatusCode }
+}
+if ($status -ne 401) {
+    throw "[$Environment] listing orders without a login returned $status, expected 401"
+}
 Write-Host "[$Environment] login OK (Keycloak reachable, protected calls refused without a token)"
 
 Write-Host "[$Environment] smoke test passed"

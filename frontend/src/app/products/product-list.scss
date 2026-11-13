@@ -29,3 +29,24 @@ th {
 .error {
   color: #b3261e;
 }
+
+.action {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.add {
+  padding: 0.25rem 0.7rem;
+  border: 1px solid #16202e;
+  border-radius: 4px;
+  background: #fff;
+  color: #16202e;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+
+  &:hover {
+    background: #16202e;
+    color: #fff;
+  }
+}

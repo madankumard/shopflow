@@ -18,6 +18,9 @@
             <th>Name</th>
             <th class="number">Price</th>
             <th class="number">In stock</th>
+            @if (auth.isCustomer()) {
+              <th></th>
+            }
           </tr>
         </thead>
         <tbody>
@@ -27,12 +30,25 @@
               <td>{{ product.name }}</td>
               <td class="number">{{ product.price | currency }}</td>
               <td class="number">{{ product.stockQuantity }}</td>
+              @if (auth.isCustomer()) {
+                <td class="action">
+                  @if (product.stockQuantity > 0) {
+                    <button type="button" class="add" (click)="cart.add(product)">Add to order</button>
+                  } @else {
+                    <span class="message">Out of stock</span>
+                  }
+                </td>
+              }
             </tr>
           }
         </tbody>
       </table>
     }
   }
+}
+
+@if (auth.isCustomer()) {
+  <app-cart (stockChanged)="load()" />
 }
 
 @if (auth.isAdmin()) {

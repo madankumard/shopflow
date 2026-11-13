@@ -1,0 +1,145 @@
+// Shared by the customer's "My orders" page and the warehouse's "Orders" page.
+
+.message {
+  color: #5b6472;
+}
+
+.error {
+  color: #b3261e;
+}
+
+.number {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+// One colour per step of an order's life.
+.status {
+  display: inline-block;
+  padding: 0.1rem 0.6rem;
+  border-radius: 999px;
+  background: #5b6b80;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: capitalize;
+
+  &[data-status='PLACED'] {
+    background: #1565c0;
+  }
+
+  &[data-status='PACKED'] {
+    background: #6a4bb5;
+  }
+
+  &[data-status='SHIPPED'] {
+    background: #b45309;
+  }
+
+  &[data-status='DELIVERED'] {
+    background: #2e7d32;
+  }
+
+  &[data-status='CANCELLED'] {
+    background: #7a7f87;
+  }
+}
+
+// My orders: one card per order.
+.order {
+  margin-bottom: 1rem;
+  border: 1px solid #e2e5ea;
+  border-radius: 6px;
+
+  header,
+  footer,
+  li {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    padding: 0.55rem 1rem;
+  }
+
+  header {
+    background: #f7f8fa;
+    border-bottom: 1px solid #e2e5ea;
+
+    .number {
+      font-weight: 600;
+    }
+
+    .date {
+      margin-left: auto;
+      color: #5b6472;
+      font-size: 0.85rem;
+    }
+  }
+
+  ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  li,
+  footer {
+    justify-content: space-between;
+  }
+
+  footer {
+    border-top: 1px solid #e2e5ea;
+    font-weight: 600;
+  }
+}
+
+// Warehouse: one row per order.
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 0.6rem 0.75rem;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid #e2e5ea;
+}
+
+th {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #5b6472;
+}
+
+.actions {
+  white-space: nowrap;
+  text-align: right;
+
+  button {
+    margin-left: 0.4rem;
+    padding: 0.25rem 0.7rem;
+    border-radius: 4px;
+    font: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+
+  .advance {
+    border: 1px solid #16202e;
+    background: #16202e;
+    color: #fff;
+  }
+
+  .cancel {
+    border: 1px solid #b3261e;
+    background: #fff;
+    color: #b3261e;
+  }
+}

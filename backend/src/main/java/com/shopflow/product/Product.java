@@ -59,4 +59,21 @@ public class Product {
 		return stockQuantity;
 	}
 
+	public boolean hasInStock(int quantity) {
+		return stockQuantity >= quantity;
+	}
+
+	/** Takes stock out for an order. The caller checks {@link #hasInStock} first. */
+	public void removeStock(int quantity) {
+		if (!hasInStock(quantity)) {
+			throw new IllegalStateException("Not enough stock of " + sku);
+		}
+		stockQuantity -= quantity;
+	}
+
+	/** Puts stock back, for example when an order is cancelled. */
+	public void addStock(int quantity) {
+		stockQuantity += quantity;
+	}
+
 }

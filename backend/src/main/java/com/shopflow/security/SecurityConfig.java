@@ -16,6 +16,10 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
 	/** Role names as defined in the Keycloak realm (infra/keycloak/shopflow-realm.json). */
+	public static final String CUSTOMER = "customer";
+
+	public static final String WAREHOUSE = "warehouse";
+
 	public static final String ADMIN = "admin";
 
 	@Bean
@@ -30,6 +34,15 @@ public class SecurityConfig {
 				.requestMatchers(HttpMethod.GET, "/api/info", "/api/products", "/api/products/*").permitAll()
 				// Changing the catalogue is for admins.
 				.requestMatchers(HttpMethod.POST, "/api/products").hasRole(ADMIN)
+				// Orders: customers place and see their own; the warehouse works through all of
+				// them; only an admin may cancel. A single order is open to any logged-in user
+				// here, and OrderService then hides other customers' orders.
+				.requestMatchers(HttpMethod.POST, "/api/orders").hasRole(CUSTOMER)
+				.requestMatchers(HttpMethod.GET, "/api/orders/mine").hasRole(CUSTOMER)
+				.requestMatchers(HttpMethod.GET, "/api/orders").hasAnyRole(WAREHOUSE, ADMIN)
+				.requestMatchers(HttpMethod.GET, "/api/orders/*").authenticated()
+				.requestMatchers(HttpMethod.POST, "/api/orders/*/advance").hasAnyRole(WAREHOUSE, ADMIN)
+				.requestMatchers(HttpMethod.POST, "/api/orders/*/cancel").hasRole(ADMIN)
 				// Anything added later is closed until a rule here opens it.
 				.anyRequest().authenticated())
 			.oauth2ResourceServer(server -> server

@@ -5,10 +5,15 @@ import { AuthService, User } from './auth.service';
 /** A stand-in for AuthService in component tests: no Keycloak, just the given user. */
 export function createFakeAuth(user: User | null = null, status: 'loading' | 'ready' = 'ready') {
   const current = signal<User | null>(user);
+  const hasAnyRole = (...roles: string[]) => roles.some((role) => current()?.roles.includes(role));
   return {
     status: signal(status),
     user: current,
-    isAdmin: computed(() => current()?.roles.includes('admin') ?? false),
+    isAdmin: computed(() => hasAnyRole('admin')),
+    isCustomer: computed(() => hasAnyRole('customer')),
+    isStaff: computed(() => hasAnyRole('warehouse', 'admin')),
+    hasAnyRole,
+    whenReady: vi.fn(async () => undefined),
     init: vi.fn(async () => undefined),
     login: vi.fn(async () => undefined),
     logout: vi.fn(async () => undefined),

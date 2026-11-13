@@ -1,0 +1,39 @@
+<h2>My orders</h2>
+
+@switch (status()) {
+  @case ('loading') {
+    <p class="message">Loading your orders…</p>
+  }
+  @case ('error') {
+    <p class="message error">Could not load your orders. Try again in a moment.</p>
+  }
+  @case ('ready') {
+    @if (orders().length === 0) {
+      <p class="message">
+        You have not placed any orders yet. <a routerLink="/products">Browse the products</a>
+      </p>
+    } @else {
+      @for (order of orders(); track order.id) {
+        <article class="order">
+          <header>
+            <span class="number">Order #{{ order.id }}</span>
+            <span class="status" [attr.data-status]="order.status">{{ order.status.toLowerCase() }}</span>
+            <span class="date">{{ order.createdAt | date: 'medium' }}</span>
+          </header>
+          <ul>
+            @for (line of order.lines; track line.productId) {
+              <li>
+                <span>{{ line.quantity }} × {{ line.productName }}</span>
+                <span>{{ line.lineTotal | currency }}</span>
+              </li>
+            }
+          </ul>
+          <footer>
+            <span>Total</span>
+            <span>{{ order.total | currency }}</span>
+          </footer>
+        </article>
+      }
+    }
+  }
+}
