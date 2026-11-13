@@ -129,7 +129,7 @@ describe('App', () => {
       expect(links()).toEqual(['Products', 'My orders']);
     });
 
-    it('adds Orders for warehouse staff and admins', async () => {
+    it('adds Orders for warehouse staff, and Reports as well for admins', async () => {
       http.expectOne('/api/info').flush(info);
       auth.user.set({ username: 'warehouse1', roles: ['warehouse'] });
       auth.status.set('ready');
@@ -138,7 +138,7 @@ describe('App', () => {
 
       auth.user.set({ username: 'admin1', roles: ['admin'] });
       await fixture.whenStable();
-      expect(links()).toEqual(['Products', 'Orders']);
+      expect(links()).toEqual(['Products', 'Orders', 'Reports']);
     });
   });
 });

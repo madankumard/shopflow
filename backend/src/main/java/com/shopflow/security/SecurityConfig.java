@@ -43,6 +43,8 @@ public class SecurityConfig {
 				.requestMatchers(HttpMethod.GET, "/api/orders/*").authenticated()
 				.requestMatchers(HttpMethod.POST, "/api/orders/*/advance").hasAnyRole(WAREHOUSE, ADMIN)
 				.requestMatchers(HttpMethod.POST, "/api/orders/*/cancel").hasRole(ADMIN)
+				// Sales figures are for admins.
+				.requestMatchers(HttpMethod.GET, "/api/reports").hasRole(ADMIN)
 				// Anything added later is closed until a rule here opens it.
 				.anyRequest().authenticated())
 			.oauth2ResourceServer(server -> server

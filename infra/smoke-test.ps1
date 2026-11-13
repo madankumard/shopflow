@@ -86,6 +86,18 @@ catch {
 if ($status -ne 401) {
     throw "[$Environment] listing orders without a login returned $status, expected 401"
 }
+# Reports are for admins.
+$status = 0
+try {
+    Invoke-WebRequest -Uri "$url/api/reports" -UseBasicParsing -TimeoutSec 10 | Out-Null
+    $status = 200
+}
+catch {
+    if ($_.Exception.Response) { $status = [int]$_.Exception.Response.StatusCode }
+}
+if ($status -ne 401) {
+    throw "[$Environment] reading the reports without a login returned $status, expected 401"
+}
 Write-Host "[$Environment] login OK (Keycloak reachable, protected calls refused without a token)"
 
 Write-Host "[$Environment] smoke test passed"

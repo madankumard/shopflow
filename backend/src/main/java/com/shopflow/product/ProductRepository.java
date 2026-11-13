@@ -13,6 +13,9 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
 	boolean existsBySku(String sku);
 
+	/** Products at or below a stock level, the emptiest first. */
+	List<Product> findByStockQuantityLessThanEqualOrderByStockQuantityAscNameAsc(int stockQuantity);
+
 	/**
 	 * Loads products and locks their rows until the transaction ends, so two orders placed at
 	 * the same moment cannot both take the last item. Always in id order, which stops two

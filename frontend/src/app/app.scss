@@ -11,6 +11,12 @@
     font-size: 1.25rem;
   }
 
+  // Space between the menu links; without it they run together into one word.
+  nav {
+    display: flex;
+    gap: 1.25rem;
+  }
+
   a {
     color: #b9c4d4;
     text-decoration: none;
