@@ -165,10 +165,39 @@ jobs:
         shell: powershell
         run: .\infra\smoke-test.ps1 -Environment qa -Tag ${{ needs.images.outputs.tag }}
 
+  # The quality gate: a real browser logs in as each test user and takes an order from
+  # placed to delivered on QA. Pre-prod is only offered for approval if this passes.
+  e2e-qa:
+    name: Browser tests on QA
+    needs: [deploy-qa]
+    runs-on: [self-hosted, shopflow-local]
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install Playwright
+        shell: powershell
+        working-directory: e2e
+        run: |
+          npm ci
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          # Downloads the browser the first time only; later runs find it already installed.
+          npx playwright install chromium
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+      - name: Run browser tests
+        shell: powershell
+        run: .\infra\e2e-test.ps1 -Environment qa
+      - name: Upload the report, with a trace and video of each failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: browser-test-report
+          path: |
+            e2e/playwright-report
+            e2e/test-results
+
   # The preprod and prod environments require a manual approval in GitHub before their job starts.
   deploy-preprod:
     name: Deploy to pre-prod
-    needs: [images, deploy-qa]
+    needs: [images, e2e-qa]
     runs-on: [self-hosted, shopflow-local]
     environment:
       name: preprod
