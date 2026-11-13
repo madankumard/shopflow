@@ -85,11 +85,18 @@ spec:
             postStart:
               exec:
                 command: ["sh", "/vault/seed/seed.sh"]
-          # Ready only once seeding has finished: the role is the last thing it needs.
+          # Ready only once seed.sh has finished. Checking for its marker file is cheap;
+          # running the vault CLI here took several seconds on a busy machine and timed out.
           readinessProbe:
             exec:
-              command: ["vault", "read", "auth/kubernetes/role/backend"]
+              command: ["test", "-f", "/tmp/vault-seeded"]
             periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /v1/sys/health
+              port: 8200
+            periodSeconds: 15
+            timeoutSeconds: 5
           resources:
             requests:
               cpu: 50m

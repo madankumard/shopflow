@@ -97,4 +97,31 @@ describe('AuthService', () => {
     await expect(auth.token()).resolves.toBeUndefined();
     expect(keycloak.updateToken).not.toHaveBeenCalled();
   });
+
+  it('answers role questions for the logged-in user', async () => {
+    const keycloak = createKeycloak();
+    keycloak.init.mockResolvedValue(true);
+    keycloak.tokenParsed = { preferred_username: 'wren', realm_access: { roles: ['warehouse'] } };
+    const { auth } = setup(keycloak);
+    await auth.init();
+
+    expect(auth.hasAnyRole('warehouse', 'admin')).toBe(true);
+    expect(auth.hasAnyRole('customer')).toBe(false);
+    expect(auth.isStaff()).toBe(true);
+    expect(auth.isCustomer()).toBe(false);
+    expect(auth.isAdmin()).toBe(false);
+  });
+
+  it('lets callers wait for the login check to finish', async () => {
+    const { auth } = setup();
+    let ready = false;
+    void auth.whenReady().then(() => (ready = true));
+
+    await Promise.resolve();
+    expect(ready).toBe(false);
+
+    await auth.init();
+    await auth.whenReady();
+    expect(ready).toBe(true);
+  });
 });

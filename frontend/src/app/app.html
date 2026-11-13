@@ -2,6 +2,12 @@
   <h1>ShopFlow</h1>
   <nav>
     <a routerLink="/products" routerLinkActive="active">Products</a>
+    @if (auth.isCustomer()) {
+      <a routerLink="/orders" routerLinkActive="active">My orders</a>
+    }
+    @if (auth.isStaff()) {
+      <a routerLink="/warehouse" routerLinkActive="active">Orders</a>
+    }
   </nav>
   @if (info(); as info) {
     <span class="env-badge" [attr.data-env]="info.environment">

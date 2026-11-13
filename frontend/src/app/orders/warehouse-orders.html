@@ -1,0 +1,73 @@
+<h2>Orders</h2>
+
+@if (error(); as error) {
+  <p class="message error" role="alert">{{ error }}</p>
+}
+
+@switch (status()) {
+  @case ('loading') {
+    <p class="message">Loading orders…</p>
+  }
+  @case ('error') {
+    <p class="message error">Could not load the orders. Try again in a moment.</p>
+  }
+  @case ('ready') {
+    @if (orders().length === 0) {
+      <p class="message">No orders yet.</p>
+    } @else {
+      <table>
+        <thead>
+          <tr>
+            <th>Order</th>
+            <th>Placed</th>
+            <th>Customer</th>
+            <th>Items</th>
+            <th class="number">Total</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (order of orders(); track order.id) {
+            <tr>
+              <td>#{{ order.id }}</td>
+              <td>{{ order.createdAt | date: 'short' }}</td>
+              <td>{{ order.customer }}</td>
+              <td>
+                @for (line of order.lines; track line.productId) {
+                  <div>{{ line.quantity }} × {{ line.productName }}</div>
+                }
+              </td>
+              <td class="number">{{ order.total | currency }}</td>
+              <td>
+                <span class="status" [attr.data-status]="order.status">{{ order.status.toLowerCase() }}</span>
+              </td>
+              <td class="actions">
+                @if (nextStep[order.status]; as label) {
+                  <button
+                    type="button"
+                    class="advance"
+                    [disabled]="busy() !== null"
+                    (click)="advance(order)"
+                  >
+                    {{ label }}
+                  </button>
+                }
+                @if (auth.isAdmin() && canBeCancelled(order)) {
+                  <button
+                    type="button"
+                    class="cancel"
+                    [disabled]="busy() !== null"
+                    (click)="cancel(order)"
+                  >
+                    Cancel
+                  </button>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  }
+}

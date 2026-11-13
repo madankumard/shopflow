@@ -1,6 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { User } from '../auth/auth.service';
 import { createFakeAuth, provideFakeAuth } from '../auth/testing';
 import { ProductList } from './product-list';
@@ -13,6 +14,7 @@ describe('ProductList', () => {
     await TestBed.configureTestingModule({
       imports: [ProductList],
       providers: [
+        provideRouter([]),
         provideHttpClient(),
         provideHttpClientTesting(),
         provideFakeAuth(createFakeAuth(user)),
@@ -85,5 +87,60 @@ describe('ProductList', () => {
 
     expect(element.querySelectorAll('tbody tr').length).toBe(1);
     expect(element.querySelector('tbody')?.textContent).toContain('Headset');
+  });
+
+  it('shows no ordering controls to a visitor or to staff', async () => {
+    await setup({ username: 'warehouse1', roles: ['warehouse'] });
+    http
+      .expectOne('/api/products')
+      .flush([{ id: 1, sku: 'KB-001', name: 'Keyboard', price: 79.99, stockQuantity: 40 }]);
+    await fixture.whenStable();
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(element.querySelector('button.add')).toBeNull();
+    expect(element.querySelector('app-cart')).toBeNull();
+  });
+
+  it('lets a customer add products that are in stock to their order', async () => {
+    await setup({ username: 'customer1', roles: ['customer'] });
+    http.expectOne('/api/products').flush([
+      { id: 1, sku: 'KB-001', name: 'Keyboard', price: 80, stockQuantity: 40 },
+      { id: 3, sku: 'MN-001', name: 'Monitor', price: 229, stockQuantity: 0 },
+    ]);
+    await fixture.whenStable();
+    const element = fixture.nativeElement as HTMLElement;
+    const rows = element.querySelectorAll('table tbody tr');
+
+    expect(rows[1].querySelector('button.add')).toBeNull();
+    expect(rows[1].textContent).toContain('Out of stock');
+
+    rows[0].querySelector<HTMLButtonElement>('button.add')!.click();
+    rows[0].querySelector<HTMLButtonElement>('button.add')!.click();
+    await fixture.whenStable();
+
+    const cart = element.querySelector('app-cart')!;
+    expect(cart.querySelector('tbody tr')?.textContent).toContain('Keyboard');
+    expect(cart.querySelector('.total')?.textContent).toContain('$160.00');
+  });
+
+  it('refreshes the stock numbers after a customer places an order', async () => {
+    await setup({ username: 'customer1', roles: ['customer'] });
+    http
+      .expectOne('/api/products')
+      .flush([{ id: 1, sku: 'KB-001', name: 'Keyboard', price: 80, stockQuantity: 40 }]);
+    await fixture.whenStable();
+    const element = fixture.nativeElement as HTMLElement;
+
+    element.querySelector<HTMLButtonElement>('button.add')!.click();
+    await fixture.whenStable();
+    element.querySelector<HTMLButtonElement>('app-cart button.place')!.click();
+    http.expectOne('/api/orders').flush({ id: 5, total: 80, status: 'PLACED', lines: [] });
+    http
+      .expectOne('/api/products')
+      .flush([{ id: 1, sku: 'KB-001', name: 'Keyboard', price: 80, stockQuantity: 39 }]);
+    await fixture.whenStable();
+
+    expect(element.querySelector('table tbody tr')?.textContent).toContain('39');
+    expect(element.querySelector('app-cart .success')?.textContent).toContain('Order #5 placed');
   });
 });

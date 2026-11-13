@@ -106,4 +106,39 @@ describe('App', () => {
       expect(auth.logout).toHaveBeenCalled();
     });
   });
+
+  describe('navigation', () => {
+    const info = { environment: 'local', version: 'dev', banner: '' };
+    const links = () =>
+      Array.from(compiled.querySelectorAll('nav a')).map((link) => link.textContent?.trim());
+
+    it('shows only Products to a visitor', async () => {
+      http.expectOne('/api/info').flush(info);
+      auth.status.set('ready');
+      await fixture.whenStable();
+
+      expect(links()).toEqual(['Products']);
+    });
+
+    it('adds My orders for a customer', async () => {
+      http.expectOne('/api/info').flush(info);
+      auth.user.set({ username: 'customer1', roles: ['customer'] });
+      auth.status.set('ready');
+      await fixture.whenStable();
+
+      expect(links()).toEqual(['Products', 'My orders']);
+    });
+
+    it('adds Orders for warehouse staff and admins', async () => {
+      http.expectOne('/api/info').flush(info);
+      auth.user.set({ username: 'warehouse1', roles: ['warehouse'] });
+      auth.status.set('ready');
+      await fixture.whenStable();
+      expect(links()).toEqual(['Products', 'Orders']);
+
+      auth.user.set({ username: 'admin1', roles: ['admin'] });
+      await fixture.whenStable();
+      expect(links()).toEqual(['Products', 'Orders']);
+    });
+  });
 });

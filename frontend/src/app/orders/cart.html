@@ -1,0 +1,64 @@
+<section class="cart">
+  <h3>Your order</h3>
+
+  @if (placed(); as order) {
+    <p class="success" role="status">
+      Order #{{ order.id }} placed for {{ order.total | currency }}.
+      <a routerLink="/orders">See my orders</a>
+    </p>
+  }
+
+  @if (cart.isEmpty()) {
+    @if (!placed()) {
+      <p class="message">Nothing picked yet. Use "Add to order" on a product above.</p>
+    }
+  } @else {
+    <table>
+      <thead>
+        <tr>
+          <th>Product</th>
+          <th class="number">Price</th>
+          <th class="number">Quantity</th>
+          <th class="number">Line total</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (item of cart.items(); track item.product.id) {
+          <tr>
+            <td>{{ item.product.name }}</td>
+            <td class="number">{{ item.product.price | currency }}</td>
+            <td class="number">
+              <input
+                type="number"
+                min="1"
+                [max]="item.product.stockQuantity"
+                [value]="item.quantity"
+                [attr.aria-label]="'Quantity of ' + item.product.name"
+                (change)="changeQuantity(item, $any($event.target).value)"
+              />
+            </td>
+            <td class="number">{{ item.product.price * item.quantity | currency }}</td>
+            <td>
+              <button type="button" class="link" (click)="cart.remove(item.product.id)">Remove</button>
+            </td>
+          </tr>
+        }
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="3">Total</td>
+          <td class="number total">{{ cart.total() | currency }}</td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+    <button type="button" class="place" [disabled]="placing()" (click)="place()">
+      {{ placing() ? 'Placing…' : 'Place order' }}
+    </button>
+  }
+
+  @if (error(); as error) {
+    <p class="error" role="alert">{{ error }}</p>
+  }
+</section>
