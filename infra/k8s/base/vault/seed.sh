@@ -29,4 +29,8 @@ vault kv put secret/backend \
   spring.datasource.username="${DB_USERNAME}" \
   spring.datasource.password="${DB_PASSWORD}" >/dev/null
 
+# The readiness probe looks for this file. It lives in the container, so it disappears
+# with every restart, exactly like the secrets it stands for.
+touch /tmp/vault-seeded
+
 echo "vault seeded"
