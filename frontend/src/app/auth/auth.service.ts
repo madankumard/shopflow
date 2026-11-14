@@ -19,28 +19,12 @@ export const KEYCLOAK = new InjectionToken<Keycloak>('keycloak', {
 });
 
 /**
- * How long to wait for Keycloak to say whether the visitor is logged in. The check runs in a
- * hidden frame, and when Keycloak refuses it (for example an address it does not know) no
- * answer ever comes back. Nothing on screen waits for this, but page guards and a login
- * clicked very early do, so the wait has to end.
+ * How long page guards and an early click on Log in wait for the start-up login check.
+ * The check can go unanswered (Keycloak refuses an address it does not know, or is slow to
+ * start), and those waits must end. The check itself is never abandoned: if it answers
+ * later, its result is still used.
  */
 export const LOGIN_CHECK_TIMEOUT_MS = 8000;
-
-function withTimeout<T>(promise: Promise<T>, milliseconds: number): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('timed out')), milliseconds);
-    promise.then(
-      (value) => {
-        clearTimeout(timer);
-        resolve(value);
-      },
-      (error) => {
-        clearTimeout(timer);
-        reject(error);
-      },
-    );
-  });
-}
 
 export interface User {
   username: string;
@@ -51,7 +35,10 @@ export interface User {
 export class AuthService {
   private readonly keycloak = inject(KEYCLOAK);
 
-  /** 'loading' until Keycloak has said whether the visitor is already logged in. */
+  /**
+   * 'loading' until the start-up check has answered or the time limit has passed. Nothing on
+   * screen waits for this: Log in is shown throughout, until a session is confirmed.
+   */
   readonly status = signal<'loading' | 'ready'>('loading');
   readonly user = signal<User | null>(null);
   readonly isAdmin = computed(() => this.hasAnyRole('admin'));
@@ -67,44 +54,61 @@ export class AuthService {
     return roles.some((role) => mine.includes(role));
   }
 
-  /** Resolves once it is known whether the visitor is logged in; route guards wait for this. */
+  /**
+   * Resolves once the start-up check has answered, or after LOGIN_CHECK_TIMEOUT_MS if it has
+   * not. Route guards wait for this.
+   */
   whenReady(): Promise<void> {
     return this.ready;
   }
 
-  /** Finds out, without leaving the page, whether the visitor already has a Keycloak session. */
+  /**
+   * Finds out, without leaving the page, whether the visitor already has a Keycloak session.
+   * When returning from Keycloak's login page, this is also where the login is completed.
+   */
   async init(): Promise<void> {
-    try {
-      const loggedIn = await withTimeout(
-        this.keycloak.init({
-          onLoad: 'check-sso',
-          pkceMethod: 'S256',
-          silentCheckSsoRedirectUri: `${window.location.origin}/silent-check-sso.html`,
-          checkLoginIframe: false,
-        }),
-        LOGIN_CHECK_TIMEOUT_MS,
+    const timer = setTimeout(() => {
+      console.warn(
+        `ShopFlow: the login server has not answered after ${LOGIN_CHECK_TIMEOUT_MS / 1000} s. ` +
+          'Carrying on as logged out; the answer is still used if it arrives.',
       );
+      this.markReady();
+    }, LOGIN_CHECK_TIMEOUT_MS);
+
+    try {
+      const loggedIn = await this.keycloak.init({
+        onLoad: 'check-sso',
+        pkceMethod: 'S256',
+        silentCheckSsoRedirectUri: `${window.location.origin}/silent-check-sso.html`,
+        checkLoginIframe: false,
+      });
+      // Applied even when it arrives after the time limit, so a slow login still counts.
       this.user.set(loggedIn ? this.readUser() : null);
-    } catch {
-      // Keycloak is unreachable, or refused the check and never answered: the public pages
-      // still work, and the visitor stays logged out.
+    } catch (error) {
+      console.warn('ShopFlow: the login check failed. Carrying on as logged out.', error);
       this.user.set(null);
+    } finally {
+      clearTimeout(timer);
+      this.markReady();
     }
-    this.status.set('ready');
-    this.resolveReady();
   }
 
   /**
-   * Sends the browser to Keycloak's login page; it returns here afterwards. The button is
-   * on the page before the start-up check has finished, so if Keycloak's client is not
-   * ready for a login yet, this waits for the check and then goes.
+   * Sends the browser to Keycloak's login page; it returns here afterwards.
+   *
+   * Log in is on screen while the start-up check is still running. A click in that moment
+   * waits for the check first: the visitor may turn out to be logged in already, or be on
+   * their way back from Keycloak, and starting a new login would throw that away.
    */
   async login(): Promise<void> {
+    await this.whenReady();
+    if (this.user()) {
+      return;
+    }
     try {
       await this.keycloak.login();
-    } catch {
-      await this.whenReady();
-      await this.keycloak.login();
+    } catch (error) {
+      console.error('ShopFlow: could not open the login page.', error);
     }
   }
 
@@ -125,6 +129,14 @@ export class AuthService {
       this.user.set(null);
       return undefined;
     }
+  }
+
+  private markReady(): void {
+    if (this.status() === 'ready') {
+      return;
+    }
+    this.status.set('ready');
+    this.resolveReady();
   }
 
   private readUser(): User {

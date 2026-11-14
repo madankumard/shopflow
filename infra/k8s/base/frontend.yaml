@@ -39,7 +39,7 @@ spec:
               value: http://keycloak:8080
           readinessProbe:
             httpGet:
-              path: /
+              path: /healthz
               port: 80
             periodSeconds: 5
           resources:
