@@ -18,6 +18,29 @@ export const KEYCLOAK = new InjectionToken<Keycloak>('keycloak', {
     }),
 });
 
+/**
+ * How long to wait for Keycloak to say whether the visitor is logged in. The check runs in a
+ * hidden frame, and when Keycloak refuses it (for example an address it does not know) no
+ * answer ever comes back, so without a limit the header would stay empty for good.
+ */
+export const LOGIN_CHECK_TIMEOUT_MS = 8000;
+
+function withTimeout<T>(promise: Promise<T>, milliseconds: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('timed out')), milliseconds);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
 export interface User {
   username: string;
   roles: string[];
@@ -51,15 +74,19 @@ export class AuthService {
   /** Finds out, without leaving the page, whether the visitor already has a Keycloak session. */
   async init(): Promise<void> {
     try {
-      const loggedIn = await this.keycloak.init({
-        onLoad: 'check-sso',
-        pkceMethod: 'S256',
-        silentCheckSsoRedirectUri: `${window.location.origin}/silent-check-sso.html`,
-        checkLoginIframe: false,
-      });
+      const loggedIn = await withTimeout(
+        this.keycloak.init({
+          onLoad: 'check-sso',
+          pkceMethod: 'S256',
+          silentCheckSsoRedirectUri: `${window.location.origin}/silent-check-sso.html`,
+          checkLoginIframe: false,
+        }),
+        LOGIN_CHECK_TIMEOUT_MS,
+      );
       this.user.set(loggedIn ? this.readUser() : null);
     } catch {
-      // Keycloak is unreachable: the public pages still work, just without a login.
+      // Keycloak is unreachable, or refused the check and never answered: the public pages
+      // still work, and the visitor is offered Log in as if they were logged out.
       this.user.set(null);
     }
     this.status.set('ready');

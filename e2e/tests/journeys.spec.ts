@@ -26,6 +26,15 @@ test('a visitor can browse the catalogue but not order', async ({ page }) => {
   await expect(page.locator('app-product-form')).toHaveCount(0);
 });
 
+test('opening the app as 127.0.0.1 leads to the same page on localhost', async ({ page, baseURL }) => {
+  // Login only works on the one address Keycloak knows, so the other spelling of this
+  // machine's address is redirected rather than left with a header that never fills in.
+  await page.goto(`${baseURL!.replace('localhost', '127.0.0.1')}/products?from=numeric`);
+
+  await expect(page).toHaveURL(`${baseURL}/products?from=numeric`);
+  await expect(page.getByRole('button', { name: 'Log in' })).toBeVisible();
+});
+
 test('an admin logs in and makes sure the test product is in the catalogue', async ({ page }) => {
   await logIn(page, 'admin1');
   await expect(page.locator('.auth .roles')).toContainText('admin');
