@@ -8,6 +8,11 @@ $Environments = [ordered]@{
     prod    = 8084
 }
 
+# The environments that currently exist as clusters and that the pipeline deploys to.
+# The others are defined (infra/kind, infra/k8s/overlays) but were deleted to save space;
+# scripts that act on "every environment" use this list.
+$ActiveEnvironments = @('dev')
+
 $Namespace = 'shopflow'
 $ImageRepository = 'ghcr.io/madankumard'
 # Our own images, built by CI and tagged with the commit.

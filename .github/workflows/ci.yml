@@ -130,8 +130,12 @@ jobs:
             done
           done
 
-  # Promotion pipeline. It runs only for commits on main, on the self-hosted runner,
-  # because the four environments are kind clusters on that machine.
+  # Deployment. It runs only for commits on main, on the self-hosted runner, because the
+  # dev environment is a kind cluster on that machine.
+  #
+  # Only dev is deployed at the moment. The qa, preprod and prod clusters were removed to
+  # free disk space; their definitions are still in infra/kind and infra/k8s/overlays.
+  # To bring one back, see "Adding an environment back" in CLAUDE.md.
   deploy-dev:
     name: Deploy to dev
     if: github.event_name == 'push'
@@ -149,27 +153,10 @@ jobs:
         shell: powershell
         run: .\infra\smoke-test.ps1 -Environment dev -Tag ${{ needs.images.outputs.tag }}
 
-  deploy-qa:
-    name: Deploy to QA
-    needs: [images, deploy-dev]
-    runs-on: [self-hosted, shopflow-local]
-    environment:
-      name: qa
-      url: http://localhost:8082
-    steps:
-      - uses: actions/checkout@v7
-      - name: Deploy
-        shell: powershell
-        run: .\infra\deploy.ps1 -Environment qa -Tag ${{ needs.images.outputs.tag }}
-      - name: Smoke test
-        shell: powershell
-        run: .\infra\smoke-test.ps1 -Environment qa -Tag ${{ needs.images.outputs.tag }}
-
-  # The quality gate: a real browser logs in as each test user and takes an order from
-  # placed to delivered on QA. Pre-prod is only offered for approval if this passes.
-  e2e-qa:
-    name: Browser tests on QA
-    needs: [deploy-qa]
+  # A real browser logs in as each test user and takes an order from placed to delivered.
+  e2e-dev:
+    name: Browser tests on dev
+    needs: [deploy-dev]
     runs-on: [self-hosted, shopflow-local]
     steps:
       - uses: actions/checkout@v7
@@ -184,7 +171,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit 1 }
       - name: Run browser tests
         shell: powershell
-        run: .\infra\e2e-test.ps1 -Environment qa
+        run: .\infra\e2e-test.ps1 -Environment dev
       - name: Upload the report, with a trace and video of each failure
         if: failure()
         uses: actions/upload-artifact@v7
@@ -193,36 +180,3 @@ jobs:
           path: |
             e2e/playwright-report
             e2e/test-results
-
-  # The preprod and prod environments require a manual approval in GitHub before their job starts.
-  deploy-preprod:
-    name: Deploy to pre-prod
-    needs: [images, e2e-qa]
-    runs-on: [self-hosted, shopflow-local]
-    environment:
-      name: preprod
-      url: http://localhost:8083
-    steps:
-      - uses: actions/checkout@v7
-      - name: Deploy
-        shell: powershell
-        run: .\infra\deploy.ps1 -Environment preprod -Tag ${{ needs.images.outputs.tag }}
-      - name: Smoke test
-        shell: powershell
-        run: .\infra\smoke-test.ps1 -Environment preprod -Tag ${{ needs.images.outputs.tag }}
-
-  deploy-prod:
-    name: Deploy to prod
-    needs: [images, deploy-preprod]
-    runs-on: [self-hosted, shopflow-local]
-    environment:
-      name: prod
-      url: http://localhost:8084
-    steps:
-      - uses: actions/checkout@v7
-      - name: Deploy
-        shell: powershell
-        run: .\infra\deploy.ps1 -Environment prod -Tag ${{ needs.images.outputs.tag }}
-      - name: Smoke test
-        shell: powershell
-        run: .\infra\smoke-test.ps1 -Environment prod -Tag ${{ needs.images.outputs.tag }}
