@@ -1,6 +1,8 @@
 <#
 .SYNOPSIS
-    Creates the kind clusters that stand in for the dev, qa, preprod and prod servers.
+    Creates the kind clusters that stand in for separate servers. Without -Environment it
+    creates the active environments (see $ActiveEnvironments in common.ps1); name one of
+    dev, qa, preprod or prod to create that one.
 .DESCRIPTION
     Safe to re-run: existing clusters and secrets are left untouched.
     Each cluster gets its own generated database password and Vault token, stored only as Kubernetes Secrets.
@@ -9,10 +11,11 @@
     .\infra\create-clusters.ps1 -Environment dev
 #>
 param(
-    [string[]]$Environment = @('dev', 'qa', 'preprod', 'prod')
+    [string[]]$Environment
 )
 
 . "$PSScriptRoot\common.ps1"
+if (-not $Environment) { $Environment = $ActiveEnvironments }
 $kind = Get-KindPath
 
 

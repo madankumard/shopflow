@@ -11,10 +11,11 @@
     .\infra\prune-images.ps1 -Environment dev
 #>
 param(
-    [string[]]$Environment = @('dev', 'qa', 'preprod', 'prod')
+    [string[]]$Environment
 )
 
 . "$PSScriptRoot\common.ps1"
+if (-not $Environment) { $Environment = $ActiveEnvironments }
 
 function Get-ImageStoreSizeMB([string]$Node) {
     [int]((docker exec $Node du -sm /var/lib/containerd) -split '\s+')[0]
