@@ -42,6 +42,42 @@ $page = Get-WithRetry "$url/"
 if ($page.Content -notmatch '<app-root') { throw "[$Environment] the home page is not the Angular app" }
 Write-Host "[$Environment] home page OK"
 
+# One address: login only works on localhost, so nginx sends pages opened by any other address
+# there, but must never redirect API or login calls (a redirected POST arrives as a GET).
+# Sent to 127.0.0.1 with the Host header set, and without following redirects.
+function Send-Raw([string]$Method, [string]$HostHeader, [string]$Path) {
+    $port = ([Uri]$url).Port
+    $request = [System.Net.HttpWebRequest]::Create("http://127.0.0.1:$port$Path")
+    $request.Method = $Method
+    $request.Host = $HostHeader
+    $request.AllowAutoRedirect = $false
+    $request.Timeout = 10000
+    if ($Method -eq 'POST') {
+        $body = [Text.Encoding]::UTF8.GetBytes('{}')
+        $request.ContentType = 'application/json'
+        $request.ContentLength = $body.Length
+        $stream = $request.GetRequestStream()
+        $stream.Write($body, 0, $body.Length)
+        $stream.Close()
+    }
+    try { $response = $request.GetResponse() }
+    catch [System.Net.WebException] { $response = $_.Exception.Response }
+    if (-not $response) { throw "[$Environment] no answer to $Method $Path as $HostHeader" }
+    $result = [pscustomobject]@{ Status = [int]$response.StatusCode; Location = $response.Headers['Location'] }
+    $response.Close()
+    $result
+}
+$port = ([Uri]$url).Port
+$redirect = Send-Raw 'GET' "127.0.0.1:$port" '/products?check=1'
+if ($redirect.Status -ne 302 -or $redirect.Location -ne "$url/products?check=1") {
+    throw "[$Environment] a page opened as 127.0.0.1 answered $($redirect.Status) $($redirect.Location), expected a redirect to $url/products?check=1"
+}
+$api = Send-Raw 'POST' "127.0.0.1:$port" '/api/orders'
+if ($api.Status -ne 401) {
+    throw "[$Environment] a POST to the API as 127.0.0.1 answered $($api.Status), expected 401 (passed to the backend, not redirected)"
+}
+Write-Host "[$Environment] one address OK (pages redirect to localhost, API calls do not)"
+
 $products = (Get-WithRetry "$url/api/products").Content | ConvertFrom-Json
 if (@($products).Count -lt 1) { throw "[$Environment] the products API returned no products" }
 Write-Host "[$Environment] products API OK ($(@($products).Count) products)"

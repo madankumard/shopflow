@@ -58,9 +58,11 @@ describe('AuthService', () => {
   it('stays usable, logged out, when Keycloak cannot be reached', async () => {
     const keycloak = createKeycloak();
     keycloak.init.mockRejectedValue(new Error('unreachable'));
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const { auth } = setup(keycloak);
 
     await auth.init();
+    vi.restoreAllMocks();
 
     expect(auth.status()).toBe('ready');
     expect(auth.user()).toBeNull();
@@ -125,49 +127,124 @@ describe('AuthService', () => {
     expect(ready).toBe(true);
   });
 
-  it('stops waiting when Keycloak never answers the check, leaving the visitor logged out', async () => {
-    vi.useFakeTimers();
-    try {
+  describe('when the login check is slow or never answers', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+      vi.restoreAllMocks();
+    });
+
+    it('stops making others wait after the time limit, says so in the console, and stays logged out', async () => {
       const keycloak = createKeycloak();
       // What happens when Keycloak refuses the hidden check: the promise simply never settles.
       keycloak.init.mockReturnValue(new Promise<boolean>(() => undefined));
       const { auth } = setup(keycloak);
 
-      const initialising = auth.init();
+      void auth.init();
       await vi.advanceTimersByTimeAsync(LOGIN_CHECK_TIMEOUT_MS - 1);
       expect(auth.status()).toBe('loading');
 
       await vi.advanceTimersByTimeAsync(1);
-      await initialising;
+      await auth.whenReady();
 
       expect(auth.status()).toBe('ready');
       expect(auth.user()).toBeNull();
-    } finally {
-      vi.useRealTimers();
-    }
+      expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('has not answered'));
+    });
+
+    it('still logs the user in when the answer arrives after the time limit', async () => {
+      const keycloak = createKeycloak();
+      let answer!: (loggedIn: boolean) => void;
+      keycloak.init.mockReturnValue(new Promise<boolean>((resolve) => (answer = resolve)));
+      keycloak.tokenParsed = { preferred_username: 'casey', realm_access: { roles: ['customer'] } };
+      const { auth } = setup(keycloak);
+
+      const initialising = auth.init();
+      await vi.advanceTimersByTimeAsync(LOGIN_CHECK_TIMEOUT_MS);
+      expect(auth.status()).toBe('ready');
+      expect(auth.user()).toBeNull();
+
+      // For example, a slow exchange of the code Keycloak sent back after logging in.
+      answer(true);
+      await initialising;
+
+      expect(auth.user()).toEqual({ username: 'casey', roles: ['customer'] });
+    });
   });
 
-  it('starts a login at once when Keycloak is ready for it', async () => {
+  it('says in the console why the check failed', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const keycloak = createKeycloak();
+    const failure = new Error('unreachable');
+    keycloak.init.mockRejectedValue(failure);
+    const { auth } = setup(keycloak);
+
+    await auth.init();
+
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('login check failed'), failure);
+    warn.mockRestore();
+  });
+
+  it('opens the login page once the check has found the visitor logged out', async () => {
     const { auth, keycloak } = setup();
+    await auth.init();
 
     await auth.login();
 
     expect(keycloak.login).toHaveBeenCalledTimes(1);
   });
 
-  it('waits for the start-up check and then logs in, if clicked before Keycloak is ready', async () => {
+  it('waits for the check before opening the login page, if Log in is clicked early', async () => {
     const keycloak = createKeycloak();
-    keycloak.login.mockRejectedValueOnce(new Error('not initialised yet'));
+    let answer!: (loggedIn: boolean) => void;
+    keycloak.init.mockReturnValue(new Promise<boolean>((resolve) => (answer = resolve)));
     const { auth } = setup(keycloak);
+    const initialising = auth.init();
 
     const loggingIn = auth.login();
     await Promise.resolve();
-    await Promise.resolve();
-    expect(keycloak.login).toHaveBeenCalledTimes(1);
+    expect(keycloak.login).not.toHaveBeenCalled();
 
-    await auth.init();
+    answer(false);
+    await initialising;
     await loggingIn;
 
-    expect(keycloak.login).toHaveBeenCalledTimes(2);
+    expect(keycloak.login).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not start a new login when the check finds the visitor already logged in', async () => {
+    const keycloak = createKeycloak();
+    let answer!: (loggedIn: boolean) => void;
+    keycloak.init.mockReturnValue(new Promise<boolean>((resolve) => (answer = resolve)));
+    keycloak.tokenParsed = { preferred_username: 'casey', realm_access: { roles: ['customer'] } };
+    const { auth } = setup(keycloak);
+    const initialising = auth.init();
+
+    const loggingIn = auth.login();
+    answer(true);
+    await initialising;
+    await loggingIn;
+
+    expect(keycloak.login).not.toHaveBeenCalled();
+    expect(auth.user()?.username).toBe('casey');
+  });
+
+  it('reports a failure to open the login page instead of passing it on to the button', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const keycloak = createKeycloak();
+    const failure = new Error('cannot reach Keycloak');
+    keycloak.login.mockRejectedValue(failure);
+    const { auth } = setup(keycloak);
+    await auth.init();
+
+    await expect(auth.login()).resolves.toBeUndefined();
+
+    expect(keycloak.login).toHaveBeenCalledTimes(1);
+    expect(error).toHaveBeenCalledWith(expect.stringContaining('could not open the login page'), failure);
+    error.mockRestore();
   });
 });
