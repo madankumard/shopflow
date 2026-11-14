@@ -73,10 +73,30 @@ describe('App', () => {
   describe('login', () => {
     const info = { environment: 'local', version: 'dev', banner: '' };
 
-    it('shows neither button while the login check is still running', () => {
+    it('offers Log in straight away, while the login check is still running', async () => {
       http.expectOne('/api/info').flush(info);
+      await fixture.whenStable();
 
-      expect(compiled.querySelector('.auth button')).toBeNull();
+      expect(auth.status()).toBe('loading');
+      const button = compiled.querySelector<HTMLButtonElement>('.auth .login');
+      expect(button?.textContent).toContain('Log in');
+      expect(compiled.querySelector('.auth .logout')).toBeNull();
+
+      button!.click();
+      expect(auth.login).toHaveBeenCalled();
+    });
+
+    it('swaps Log in for the user as soon as the check finds them logged in', async () => {
+      http.expectOne('/api/info').flush(info);
+      await fixture.whenStable();
+      expect(compiled.querySelector('.auth .login')).not.toBeNull();
+
+      auth.user.set({ username: 'customer1', roles: ['customer'] });
+      auth.status.set('ready');
+      await fixture.whenStable();
+
+      expect(compiled.querySelector('.auth .login')).toBeNull();
+      expect(compiled.querySelector('.auth .user')?.textContent).toContain('customer1');
     });
 
     it('offers Log in to a visitor and starts the login when clicked', async () => {

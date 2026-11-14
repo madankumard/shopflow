@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
-import { AuthService, KEYCLOAK } from './auth.service';
+import { AuthService, KEYCLOAK, LOGIN_CHECK_TIMEOUT_MS } from './auth.service';
 
 describe('AuthService', () => {
   /** The parts of the Keycloak client that AuthService uses. */
@@ -123,5 +123,51 @@ describe('AuthService', () => {
     await auth.init();
     await auth.whenReady();
     expect(ready).toBe(true);
+  });
+
+  it('stops waiting when Keycloak never answers the check, leaving the visitor logged out', async () => {
+    vi.useFakeTimers();
+    try {
+      const keycloak = createKeycloak();
+      // What happens when Keycloak refuses the hidden check: the promise simply never settles.
+      keycloak.init.mockReturnValue(new Promise<boolean>(() => undefined));
+      const { auth } = setup(keycloak);
+
+      const initialising = auth.init();
+      await vi.advanceTimersByTimeAsync(LOGIN_CHECK_TIMEOUT_MS - 1);
+      expect(auth.status()).toBe('loading');
+
+      await vi.advanceTimersByTimeAsync(1);
+      await initialising;
+
+      expect(auth.status()).toBe('ready');
+      expect(auth.user()).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('starts a login at once when Keycloak is ready for it', async () => {
+    const { auth, keycloak } = setup();
+
+    await auth.login();
+
+    expect(keycloak.login).toHaveBeenCalledTimes(1);
+  });
+
+  it('waits for the start-up check and then logs in, if clicked before Keycloak is ready', async () => {
+    const keycloak = createKeycloak();
+    keycloak.login.mockRejectedValueOnce(new Error('not initialised yet'));
+    const { auth } = setup(keycloak);
+
+    const loggingIn = auth.login();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(keycloak.login).toHaveBeenCalledTimes(1);
+
+    await auth.init();
+    await loggingIn;
+
+    expect(keycloak.login).toHaveBeenCalledTimes(2);
   });
 });

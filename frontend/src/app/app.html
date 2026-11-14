@@ -17,20 +17,19 @@
       {{ info.environment }} · {{ info.version }}
     </span>
   }
-  <!-- Empty until Keycloak has said whether the visitor is already logged in. -->
+  <!-- Log in is always there, from the first moment. It gives way to the user's name only
+       once Keycloak has confirmed that the visitor is already logged in. -->
   <div class="auth">
-    @if (auth.status() === 'ready') {
-      @if (auth.user(); as user) {
-        <span class="user">
-          {{ user.username }}
-          @if (user.roles.length > 0) {
-            <span class="roles">({{ user.roles.join(', ') }})</span>
-          }
-        </span>
-        <button type="button" class="logout" (click)="auth.logout()">Log out</button>
-      } @else {
-        <button type="button" class="login" (click)="auth.login()">Log in</button>
-      }
+    @if (auth.user(); as user) {
+      <span class="user">
+        {{ user.username }}
+        @if (user.roles.length > 0) {
+          <span class="roles">({{ user.roles.join(', ') }})</span>
+        }
+      </span>
+      <button type="button" class="logout" (click)="auth.logout()">Log out</button>
+    } @else {
+      <button type="button" class="login" (click)="auth.login()">Log in</button>
     }
   </div>
 </header>

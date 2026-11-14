@@ -18,6 +18,30 @@ export const KEYCLOAK = new InjectionToken<Keycloak>('keycloak', {
     }),
 });
 
+/**
+ * How long to wait for Keycloak to say whether the visitor is logged in. The check runs in a
+ * hidden frame, and when Keycloak refuses it (for example an address it does not know) no
+ * answer ever comes back. Nothing on screen waits for this, but page guards and a login
+ * clicked very early do, so the wait has to end.
+ */
+export const LOGIN_CHECK_TIMEOUT_MS = 8000;
+
+function withTimeout<T>(promise: Promise<T>, milliseconds: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('timed out')), milliseconds);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
 export interface User {
   username: string;
   roles: string[];
@@ -51,24 +75,37 @@ export class AuthService {
   /** Finds out, without leaving the page, whether the visitor already has a Keycloak session. */
   async init(): Promise<void> {
     try {
-      const loggedIn = await this.keycloak.init({
-        onLoad: 'check-sso',
-        pkceMethod: 'S256',
-        silentCheckSsoRedirectUri: `${window.location.origin}/silent-check-sso.html`,
-        checkLoginIframe: false,
-      });
+      const loggedIn = await withTimeout(
+        this.keycloak.init({
+          onLoad: 'check-sso',
+          pkceMethod: 'S256',
+          silentCheckSsoRedirectUri: `${window.location.origin}/silent-check-sso.html`,
+          checkLoginIframe: false,
+        }),
+        LOGIN_CHECK_TIMEOUT_MS,
+      );
       this.user.set(loggedIn ? this.readUser() : null);
     } catch {
-      // Keycloak is unreachable: the public pages still work, just without a login.
+      // Keycloak is unreachable, or refused the check and never answered: the public pages
+      // still work, and the visitor stays logged out.
       this.user.set(null);
     }
     this.status.set('ready');
     this.resolveReady();
   }
 
-  /** Sends the browser to Keycloak's login page; it returns here afterwards. */
-  login(): Promise<void> {
-    return this.keycloak.login();
+  /**
+   * Sends the browser to Keycloak's login page; it returns here afterwards. The button is
+   * on the page before the start-up check has finished, so if Keycloak's client is not
+   * ready for a login yet, this waits for the check and then goes.
+   */
+  async login(): Promise<void> {
+    try {
+      await this.keycloak.login();
+    } catch {
+      await this.whenReady();
+      await this.keycloak.login();
+    }
   }
 
   logout(): Promise<void> {
