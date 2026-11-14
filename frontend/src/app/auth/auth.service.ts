@@ -21,7 +21,8 @@ export const KEYCLOAK = new InjectionToken<Keycloak>('keycloak', {
 /**
  * How long to wait for Keycloak to say whether the visitor is logged in. The check runs in a
  * hidden frame, and when Keycloak refuses it (for example an address it does not know) no
- * answer ever comes back, so without a limit the header would stay empty for good.
+ * answer ever comes back. Nothing on screen waits for this, but page guards and a login
+ * clicked very early do, so the wait has to end.
  */
 export const LOGIN_CHECK_TIMEOUT_MS = 8000;
 
@@ -86,16 +87,25 @@ export class AuthService {
       this.user.set(loggedIn ? this.readUser() : null);
     } catch {
       // Keycloak is unreachable, or refused the check and never answered: the public pages
-      // still work, and the visitor is offered Log in as if they were logged out.
+      // still work, and the visitor stays logged out.
       this.user.set(null);
     }
     this.status.set('ready');
     this.resolveReady();
   }
 
-  /** Sends the browser to Keycloak's login page; it returns here afterwards. */
-  login(): Promise<void> {
-    return this.keycloak.login();
+  /**
+   * Sends the browser to Keycloak's login page; it returns here afterwards. The button is
+   * on the page before the start-up check has finished, so if Keycloak's client is not
+   * ready for a login yet, this waits for the check and then goes.
+   */
+  async login(): Promise<void> {
+    try {
+      await this.keycloak.login();
+    } catch {
+      await this.whenReady();
+      await this.keycloak.login();
+    }
   }
 
   logout(): Promise<void> {

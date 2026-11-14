@@ -125,7 +125,7 @@ describe('AuthService', () => {
     expect(ready).toBe(true);
   });
 
-  it('gives up waiting and offers a login when Keycloak never answers the check', async () => {
+  it('stops waiting when Keycloak never answers the check, leaving the visitor logged out', async () => {
     vi.useFakeTimers();
     try {
       const keycloak = createKeycloak();
@@ -145,5 +145,29 @@ describe('AuthService', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('starts a login at once when Keycloak is ready for it', async () => {
+    const { auth, keycloak } = setup();
+
+    await auth.login();
+
+    expect(keycloak.login).toHaveBeenCalledTimes(1);
+  });
+
+  it('waits for the start-up check and then logs in, if clicked before Keycloak is ready', async () => {
+    const keycloak = createKeycloak();
+    keycloak.login.mockRejectedValueOnce(new Error('not initialised yet'));
+    const { auth } = setup(keycloak);
+
+    const loggingIn = auth.login();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(keycloak.login).toHaveBeenCalledTimes(1);
+
+    await auth.init();
+    await loggingIn;
+
+    expect(keycloak.login).toHaveBeenCalledTimes(2);
   });
 });
